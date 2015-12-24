@@ -1,0 +1,4 @@
+[gerrit]
+host=dev.kylincloud.me
+port=29418
+project=ubuntu-14.04/bilean.git

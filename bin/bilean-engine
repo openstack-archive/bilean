@@ -1,0 +1,63 @@
+#!/usr/bin/env python
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""
+Bilean Engine Server.  This does the work of actually implementing the API
+calls made by the user.  Normal communications is done via the bilean API
+which then calls into this engine.
+"""
+
+import eventlet
+eventlet.monkey_patch()
+
+import os
+import sys
+
+# If ../bilean/__init__.py exists, add ../ to Python search path, so that
+# it will override what happens to be installed in /usr/(local/)lib/python...
+POSSIBLE_TOPDIR = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]),
+                                   os.pardir,
+                                   os.pardir))
+if os.path.exists(os.path.join(POSSIBLE_TOPDIR, 'bilean', '__init__.py')):
+    sys.path.insert(0, POSSIBLE_TOPDIR)
+
+from bilean.common import messaging
+from bilean.common import params
+
+from oslo_config import cfg
+from oslo_i18n import _lazy
+from oslo_log import log as logging
+from oslo_service import service
+
+_lazy.enable_lazy()
+
+LOG = logging.getLogger('bilean.engine')
+
+
+if __name__ == '__main__':
+    logging.register_options(cfg.CONF)
+    cfg.CONF(project='bilean', prog='bilean-engine')
+    logging.setup(cfg.CONF, 'bilean-engine')
+    logging.set_defaults()
+    messaging.setup()
+
+    from bilean.engine import service as engine
+
+    srv = engine.EngineService(cfg.CONF.host, params.ENGINE_TOPIC)
+    launcher = service.launch(cfg.CONF, srv,
+                              workers=cfg.CONF.num_engine_workers)
+    # We create the periodic tasks here, which mean they are created
+    # only in the parent process when num_engine_workers>1 is specified
+    srv.create_bilean_tasks()
+    launcher.wait()

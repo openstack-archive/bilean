@@ -1,0 +1,32 @@
+- event_type: compute.instance.*.end
+  resources:
+    - resource_type: os.nova.server
+      traits:
+        instance_flavor_id:
+          fields: payload.instance_flavor_id
+        resource_ref:
+          fields: payload.instance_id
+- event_type: volume.*.end
+  resources:
+    - resource_type: volume
+      traits:
+        value:
+          fields: payload.size
+        resource_ref:
+          fields: payload.volume_id
+- event_type: network.create.end
+  resources:
+    - resource_type: network
+      traits:
+        resource_ref:
+          fields: payload.network.id
+        user_id:
+          fields: payload.network.tenant_id
+- event_type: network.delete.end
+  resources:
+    - resource_type: network
+      traits:
+        resource_ref:
+          fields: payload.network_id
+        user_id:
+          fields: payload.network.tenant_id

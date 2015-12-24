@@ -1,0 +1,17 @@
+{
+    "context_is_admin": "role:admin",
+
+    "users:index": "role:admin",
+    "users:update": "role:admin",
+    "users:show": "",
+
+    "resources:index": "role:admin",
+    "resources:show": "role:admin",
+    "resources:validate_creation": "role:admin",
+
+    "rules:index": "",
+    "rules:create": "role:admin",
+    "rules:show": "role:admin",
+    "rules:update": "role:admin",
+    "rules:delete": "role:admin"
+}
