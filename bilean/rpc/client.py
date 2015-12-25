@@ -104,9 +104,11 @@ class EngineClient(object):
         return self.call(ctxt, self.make_msg('resource_get',
                                              resource_id=resource_id))
 
-    def resource_create(self, ctxt, resource):
-        return self.call(ctxt, self.make_msg('resource_update',
-                                             resource=resource))
+    def resource_create(self, ctxt, id, user_id, resource_type, properties):
+        return self.call(ctxt, self.make_msg('resource_create', id=id,
+                                             user_id=user_id,
+                                             resource_type=resource_type,
+                                             properties=properties))
 
     def resource_update(self, ctxt, resource):
         return self.call(ctxt, self.make_msg('resource_update',

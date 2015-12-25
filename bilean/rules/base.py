@@ -130,8 +130,7 @@ class Rule(object):
 
         records = db_api.rule_get_all(ctx)
 
-        for record in records:
-            yield cls.from_db_record(record)
+        return [cls.from_db_record(record) for record in records)
 
     @classmethod
     def delete(cls, ctx, rule_id):
@@ -171,7 +170,7 @@ class Rule(object):
         return dict((name, dict(schema))
                     for name, schema in cls.properties_schema.items())
 
-    def do_get_price(self, resource):
+    def get_price(self, resource):
         '''For subclass to override.'''
 
         return NotImplemented
