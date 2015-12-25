@@ -15,7 +15,8 @@ from bilean.common.i18n import _
 from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.engine import api
-from bilean.engine import events
+from bilean.engine import event as event_mod
+from bilean.engine import resource as resource_mod
 
 from oslo_log import log as logging
 from oslo_utils import timeutils
@@ -27,14 +28,14 @@ class User(object):
     """User object contains all user operations"""
 
     statuses = (
-        INIT, ACTIVE, WARNING, FREEZE,
+        INIT, FREE, ACTIVE, WARNING, FREEZE,
     ) = (
-        'INIT', 'ACTIVE', 'WARNING', 'FREEZE',
+        'INIT', 'FREE', 'ACTIVE', 'WARNING', 'FREEZE',
     )
 
-    def __init__(self, user_id, policy_id, **kwargs):
+    def __init__(self, user_id, **kwargs):
         self.id = user_id 
-        self.policy_id = policy_id
+        self.policy_id = kwargs.get('policy_id', None)
         self.balance = kwargs.get('balance', 0)
         self.rate = kwargs.get('rate', 0.0)
         self.credit = kwargs.get('credit', 0)
@@ -47,9 +48,8 @@ class User(object):
         self.updated_at = kwargs.get('updated_at', None)
         self.deleted_at = kwargs.get('deleted_at', None)
 
-    def store(context, values):
-        """Store the user record into database table.
-        """
+    def store(self, context):
+        """Store the user record into database table."""
 
         values = {
             'policy_id': self.policy_id,
@@ -81,6 +81,7 @@ class User(object):
         :param record: a DB user object that contains all fields;
         '''
         kwargs = {
+            'policy_id': record.policy_id,
             'balance': record.balance,
             'rate': record.rate,
             'credit': record.credit,
@@ -92,7 +93,7 @@ class User(object):
             'deleted_at': record.deleted_at,
         }
 
-        return cls(record.id, record.policy_id, **kwargs)
+        return cls(record.id, **kwargs)
 
     @classmethod
     def load(cls, context, user_id=None, user=None, show_deleted=False,
@@ -136,50 +137,96 @@ class User(object):
             'deleted_at': utils.format_time(self.deleted_at),
         }
         return user_dict
- 
-    def set_status(self, context, status, reason=None):
-        '''Set status of the user.'''
 
+    def set_status(self, status, reason=None):
+        '''Set status of the user.'''
         self.status = status
-        values['status'] = status
         if reason:
             self.status_reason = reason
-            values['status_reason'] = reason
-        db_api.user_update(context, self.id, values)
+        #db_api.user_update(context, self.id, values)
+
+    def update_with_resource(self, context, resource, action='create'):
+        '''Update user with resource'''
+        if 'create' == action:
+            d_rate = resource.rate
+            if self.rate > 0:
+                self.do_bill(context)
+        elif 'delete' == action:
+            self.do_bill(context)
+            d_rate = -resource.rate
+        elif 'update' == action:
+            self.do_bill(context)
+            d_rate = resource.d_rate
+        self._change_user_rate(cnxt, d_rate)
+        self.store(context)
+
+    def _change_user_rate(self, context, d_rate):
+        # Update the rate of user
+        old_rate = self.rate
+        new_rate = old_rate + d_rate
+        if old_rate == 0 and new_rate > 0:
+           self.last_bill = timeutils.utcnow()
+        if d_rate > 0 and self.status == self.FREE:
+            self.status = self.ACTIVE
+        elif d_rate < 0:
+            if new_rate == 0 and self.balance > 0:
+                self.status = self.FREE 
+            elif self.status == self.WARNING:
+                prior_notify_time = cfg.CONF.bilean_task.prior_notify_time * 60
+                rest_usage =  prior_notify_time * new_rate
+                if self.balance > rest_usage:
+                    self.status = self.ACTIVE
+        self.rate = new_rate
+
+    def do_recharge(self, context, value):
+        '''Do recharge for user.'''
+        if self.rate > 0 and self.status != self.FREEZE:
+            self.do_bill(context)
+        self.balance += value
+        if self.status == self.INIT and self.balance > 0:
+            self.set_status(self.ACTIVE, reason='Recharged')
+        elif self.status == self.FREEZE and self.balance > 0:
+            reason = "Status change from freeze to active because "
+                     "of recharge."
+            self.set_status(self.ACTIVE, reason=reason)
+        elif self.status == self.WARNING:
+            prior_notify_time = cfg.CONF.bilean_task.prior_notify_time * 60
+            rest_usage = prior_notify_time * self.rate
+            if self.balance > rest_usage:
+                reason = "Status change from warning to active because "
+                         "of recharge."
+                self.set_status(self.ACTIVE, reason=reason)
+        event_mod.record(context, self.id, action='recharge', value=value)
+        self.store(context)
+
+    def _freeze(self, context, reason=None):
+        '''Freeze user when balance overdraft.'''
+        LOG.info(_("Freeze user because of: %s") % reason)
+        self._release_resource(context)
+        LOG.info(_("Balance of user %s overdraft, change user's "
+                   "status to 'freeze'") % self.id)
+        self.status = self.FREEZE
+        self.status_reason = reason
+
+    def _release_resource(self, context):
+        '''Do freeze user, delete all resources ralated to user.'''
+        filters = {'user_id': self.id}
+        resources = resource_mod.Resource.load_all(context, filters=filters)
+        for resource in resources:
+            resource.do_delete(context)
 
     def do_delete(self, context):
         db_api.user_delete(context, self.id)
         return True
 
-    def do_bill(self, context, user, update=False, bilean_controller=None):
+    def do_bill(self, context):
+        '''Do bill once, pay the cost until now.'''
         now = timeutils.utcnow()
-        last_bill = user['last_bill']
-        if not last_bill:
-            LOG.error(_("Last bill info not found"))
-            return
-        total_seconds = (now - last_bill).total_seconds()
-        if total_seconds < 0:
-            LOG.error(_("Now time is earlier than last bill!"))
-            return
-        usage = user['rate'] / 3600.0 * total_seconds
-        new_balance = user['balance'] - usage
-        if not update:
-            user['balance'] = new_balance
-            return user
-        else:
-            update_values = {}
-            update_values['balance'] = new_balance
-            update_values['last_bill'] = now
-            if new_balance < 0:
-                if bilean_controller:
-                    bilean_controller.do_freeze_action(context, user['id'])
-                update_values['status'] = 'freeze'
-                update_values['status_reason'] = 'balance overdraft'
-                LOG.info(_("Balance of user %s overdraft, change user's status to "
-                           "'freeze'") % user['id'])
-            new_user = update_user(context, user['id'], update_values)
-            events.generate_events(context,
-                                   user['id'],
-                                   'charge',
-                                   time_length=total_seconds)
-            return new_user
+        total_seconds = (now - self.last_bill).total_seconds()
+        self.balance = self.balance - self.rate * total_seconds
+        self.last_bill = now
+        if self.balance < 0:
+            self._freeze(context, reason="Balance overdraft")
+        event_mod.record(context, self.id,
+                         action='charge',
+                         seconds=total_seconds)
