@@ -171,7 +171,7 @@ class Rule(object):
         return dict((name, dict(schema))
                     for name, schema in cls.properties_schema.items())
 
-    def get_price(self, resource):
+    def do_get_price(self, resource):
         '''For subclass to override.'''
 
         return NotImplemented

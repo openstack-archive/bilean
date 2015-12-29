@@ -15,7 +15,7 @@ import six
 
 from bilean.common.i18n import _
 from bilean.db import api as db_api
-from bilean.engine import resource as bilean_resources
+from bilean.engine import resources as bilean_resources
 
 from oslo_log import log as logging
 
@@ -61,13 +61,15 @@ class Event(object):
 
     @classmethod
     def load_all(cls, context, filters=None, limit=None, marker=None,
-                 sort_keys=None, sort_dir=None, project_safe=True):
+                 sort_keys=None, sort_dir=None, project_safe=True,
+                 show_deleted=False):
         '''Retrieve all events from database.'''
 
         records = db_api.event_get_all(context, limit=limit, marker=marker,
                                        sort_keys=sort_keys, sort_dir=sort_dir,
                                        filters=filters,
-                                       project_safe=project_safe)
+                                       project_safe=project_safe,
+                                       show_deleted=show_deleted)
 
         for record in records:
             yield cls.from_db_record(record)
@@ -104,11 +106,11 @@ class Event(object):
             'timestamp': utils.format_time(self.timestamp),
         }
         return evt
-
+    
 
 def record(context, user_id, action=None, seconds=0, value=0):
     """Generate events for specify user
-
+ 
     :param context: oslo.messaging.context
     :param user_id: ID of user to mark event
     :param action: action of event, include 'charge' and 'recharge'

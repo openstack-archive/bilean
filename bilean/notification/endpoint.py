@@ -60,7 +60,7 @@ class EventsNotificationEndpoint(object):
             act = notify_action.UserAction(self.cnxt, action, user_id)
             LOG.info(_("Notify engine to %(action)s user: %(user)s") %
                      {'action': action, 'user': user})
-            act.execute()
+            #act.execute()
 
         return oslo_messaging.NotificationResult.HANDLED
 
@@ -81,7 +81,7 @@ class EventsNotificationEndpoint(object):
                 LOG.info(_("Notify engine to %(action)s resource: "
                            "%(resource)s") % {'action': action,
                                               'resource': resource})
-                act.execute()
+                #act.execute()
 
         return oslo_messaging.NotificationResult.HANDLED
 

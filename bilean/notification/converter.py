@@ -21,7 +21,6 @@ from bilean.common.i18n import _
 
 from oslo_config import cfg
 from oslo_log import log as logging
-from oslo_utils import timeutils
 
 resource_definition_opts = [
     cfg.StrOpt('definitions_cfg_file',
@@ -207,8 +206,6 @@ class ResourceDefinition(object):
         resource = {"resource_type": self.resource_type}
         for trait in traits:
             resource.update(trait)
-        if 'created_at' not in resource:
-            resource['created_at'] = timeutils.utcnow()
         return resource
 
 

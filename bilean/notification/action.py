@@ -11,8 +11,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from bilean.common import exception
-from bilean.common.i18n import _
 from bilean.common.i18n import _LE
 from bilean.rpc import client as rpc_client
 
@@ -50,39 +48,10 @@ class Action(object):
     
 class ResourceAction(Action):
     """Notification controller for Resources."""
-    
-    def __init__(self, cnxt, action, data):
-        super(ResourceAction, self).__init__(cnxt, action, data)
-
-        self.id = data.get('id', None)
-        self.user_id = data.get('user_id', None)
-        self.resource_type = data.get('resource_type', None)
-        self.properties = {}
-        self._parse_and_validate()
-
-    def _parse_and_validate(self):
-        for key in self.data.keys():
-            if key not in ['id', 'user_id', 'resource_type']:
-                self.properties[key] = self.data[key]
-        if not self.id:
-            msg = _("Id of resource can not be None")
-            raise exception.InvalidResource(msg=msg)
-        if not self.user_id:
-            msg = _("User_id of resource can not be None")
-            raise exception.InvalidResource(msg=msg)
-        if not self.resource_type:
-            msg = _("Resource_type of resource can not be None")
-            raise exception.InvalidResource(msg=msg)
-        if not self.properties:
-            msg = _("Properties of resource can not be empty")
-            raise exception.InvalidResource(msg=msg)
 
     def do_create(self):
-        """Create new resource"""
-        return self.rpc_client.resource_create(self.cnxt, self.id,
-                                               self.user_id,
-                                               self.resource_type,
-                                               self.properties)
+        """Create a new resource"""
+        return self.rpc_client.resource_create(self.cnxt, self.data)
 
     def do_update(self):
         """Update a resource"""

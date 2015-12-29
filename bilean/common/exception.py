@@ -197,8 +197,9 @@ class EventNotFound(BileanException):
     msg_fmt = _("The event (%(event)s) could not be found.")
 
 
-class InvalidResource(BileanException):
-    msg_fmt = _("%(msg)")
+class NodeNotOrphan(BileanException):
+    msg_fmt = _("%(message)s")
+
 
 class InternalError(BileanException):
     '''A base class for internal exceptions in bilean.

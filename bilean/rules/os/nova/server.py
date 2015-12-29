@@ -70,7 +70,7 @@ class ServerRule(base.Rule):
         ),
     }
 
-    def get_price(self, resource):
+    def do_get_price(self, resource):
         '''Get the price of resource in seconds.
 
         If no exact price found, it shows that rule of the server's flavor
