@@ -83,7 +83,7 @@ def setup(url=None, optional=False):
 
 def cleanup():
     """Cleanup the oslo_messaging layer."""
-    global TRANSPORTS, NOTIFIER
+    global TRANSPORT, TRANSPORTS, NOTIFIER
     for url in TRANSPORTS:
         TRANSPORTS[url].cleanup()
         del TRANSPORTS[url]

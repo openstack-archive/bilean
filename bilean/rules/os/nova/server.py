@@ -10,17 +10,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import base64
-import copy
-
 from oslo_log import log as logging
-from oslo_utils import encodeutils
-import six
 
 from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common import schema
-from bilean.common import utils
 from bilean.rules import base
 
 LOG = logging.getLogger(__name__)
@@ -74,7 +68,7 @@ class ServerRule(base.Rule):
         '''Get the price of resource in seconds.
 
         If no exact price found, it shows that rule of the server's flavor
-        has not been set, will return 0 as the price notify admin to set 
+        has not been set, will return 0 as the price notify admin to set
         it.
 
         :param: resource: Resource object to find price.

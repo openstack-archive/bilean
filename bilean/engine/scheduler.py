@@ -16,13 +16,17 @@ from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common.i18n import _LI
 from bilean.db import api as db_api
+from bilean.engine import user as user_mod
 from bilean import notifier
 
 from oslo_config import cfg
 from oslo_log import log as logging
+from oslo_utils import timeutils
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import timedelta
 import random
+import six
 
 bilean_task_opts = [
     cfg.StrOpt('time_zone',
@@ -65,7 +69,7 @@ class BileanScheduler(object):
     trigger_types = (DATE, CRON) = ('date', 'cron')
 
     def __init__(self, **kwargs):
-        super(BileanTask, self).__init__()
+        super(BileanScheduler, self).__init__()
         self._scheduler = BackgroundScheduler()
         self.notifier = notifier.Notifier()
         self.engine_id = kwargs.get('engine_id', None)
@@ -76,22 +80,22 @@ class BileanScheduler(object):
             self._scheduler.add_jobstore(cfg.CONF.bilean_task.backend,
                                          url=cfg.CONF.bilean_task.connection)
 
-    def init_scheduler(self)
+    def init_scheduler(self):
         """Init all jobs related to the engine from db."""
-        jobs = db_api.job_get_by_engine_id(self.context, self.engine_id)
+        jobs = db_api.job_get_all(self.context, engine_id=self.engine_id)
         if not jobs:
             LOG.info(_LI("No job found from db"))
             return True
         for job in jobs:
             if self.bilean_scheduler.is_exist(job.id):
                 continue
-            task_name = "_%s_task" % (job.job_type) 
+            task_name = "_%s_task" % (job.job_type)
             task = getattr(self, task_name)
             self.bilean_task.add_job(task, job.id,
                                      job_type=job.job_type,
                                      params=job.parameters)
 
-   def add_job(self, task, job_id, trigger_type='date', **kwargs):
+    def add_job(self, task, job_id, trigger_type='date', **kwargs):
         """Add a job to scheduler by given data.
 
         :param str|unicode user_id: used as job_id
@@ -112,7 +116,7 @@ class BileanScheduler(object):
                                     args=[user_id],
                                     id=job_id,
                                     misfire_grace_time=mg_time)
-            return True 
+            return True
 
         # Add a cron type job
         hour = kwargs.get('hour', None)

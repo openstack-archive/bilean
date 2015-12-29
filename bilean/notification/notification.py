@@ -41,7 +41,7 @@ class NotificationService(service.Service):
             self.transport, self.targets, self.endpoints)
 
         LOG.info(_("Starting listener on topic: %s"),
-            params.NOTIFICATION_TOPICS)
+                 params.NOTIFICATION_TOPICS)
         listener.start()
         self.listeners.append(listener)
 

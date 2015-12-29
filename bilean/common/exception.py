@@ -200,6 +200,7 @@ class EventNotFound(BileanException):
 class InvalidResource(BileanException):
     msg_fmt = _("%(msg)")
 
+
 class InternalError(BileanException):
     '''A base class for internal exceptions in bilean.
 

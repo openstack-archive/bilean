@@ -11,9 +11,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from bilean.common import exception
+from bilean.common import utils
 from bilean.db import api as db_api
-from bilean.engine import policy as policy_mod
-from bilean.engine import user as user_mod
 
 
 class Resource(object):
@@ -41,8 +41,7 @@ class Resource(object):
             self.get_resource_price()
 
     def store(self, context):
-        """Store the resource record into database table.
-        """
+        """Store the resource record into database table."""
 
         values = {
             'user_id': self.user_id,
@@ -83,29 +82,30 @@ class Resource(object):
 
     @classmethod
     def load(cls, context, resource_id=None, resource=None,
-             show_deleted=False, project_safe=True):
+             show_deleted=False, tenant_safe=True):
         '''Retrieve a resource from database.'''
         if resource is None:
             resource = db_api.resource_get(context, resource_id,
                                            show_deleted=show_deleted,
-                                           project_safe=project_safe)
+                                           tenant_safe=tenant_safe)
             if resource is None:
                 raise exception.ResourceNotFound(resource=resource_id)
 
         return cls._from_db_record(resource)
 
     @classmethod
-    def load_all(cls, context, show_deleted=False, limit=None,
-                 marker=None, sort_keys=None, sort_dir=None,
-                 filters=None, project_safe=True):
+    def load_all(cls, context, user_id=None, show_deleted=False,
+                 limit=None, marker=None, sort_keys=None, sort_dir=None,
+                 filters=None, tenant_safe=True):
         '''Retrieve all users of from database.'''
 
-        records = db_api.resource_get_all(context, show_deleted=show_deleted,
+        records = db_api.resource_get_all(context, user_id=user_id,
+                                          show_deleted=show_deleted,
                                           limit=limit, marker=marker,
                                           sort_keys=sort_keys,
                                           sort_dir=sort_dir,
                                           filters=filters,
-                                          project_safe=project_safe)
+                                          tenant_safe=tenant_safe)
 
         return [cls._from_db_record(record) for record in records]
 
@@ -121,7 +121,7 @@ class Resource(object):
             'updated_at': utils.format_time(self.updated_at),
             'deleted_at': utils.format_time(self.deleted_at),
         }
-        return user_dict
+        return resource_dict
 
     def do_delete(self, context, resource_id):
         db_api.resource_delete(context, resource_id)

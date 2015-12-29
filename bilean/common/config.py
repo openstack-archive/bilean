@@ -44,7 +44,8 @@ service_opts = [
                help=_('Number of heat-engine processes to fork and run.')),
     cfg.StrOpt('environment_dir',
                default='/etc/bilean/environments',
-               help=_('The directory to search for environment files.')),]
+               help=_('The directory to search for environment files.')),
+    ]
 
 rpc_opts = [
     cfg.StrOpt('host',

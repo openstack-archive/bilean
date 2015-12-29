@@ -10,13 +10,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import copy
-
-from oslo_context import context as oslo_context
 from oslo_log import log as logging
 from oslo_utils import timeutils
 
-from bilean.common import context
 from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common import schema
@@ -115,28 +111,34 @@ class Rule(object):
         return cls(record.name, record.spec, **kwargs)
 
     @classmethod
-    def load(cls, ctx, rule_id=None, rule=None):
+    def load(cls, context, rule_id=None, rule=None, show_deleted=False):
         '''Retrieve a rule object from database.'''
         if rule is None:
-            rule = db_api.rule_get(ctx, rule_id)
+            rule = db_api.rule_get(context, rule_id,
+                                   show_deleted=show_deleted)
             if rule is None:
                 raise exception.RuleNotFound(rule=rule_id)
 
         return cls.from_db_record(rule)
 
     @classmethod
-    def load_all(cls, ctx):
+    def load_all(cls, context, show_deleted=False, limit=None,
+                 marker=None, sort_keys=None, sort_dir=None,
+                 filters=None):
         '''Retrieve all rules from database.'''
 
-        records = db_api.rule_get_all(ctx)
+        records = db_api.rule_get_all(context, show_deleted=show_deleted,
+                                      limit=limit, marker=marker,
+                                      sort_keys=sort_keys, sort_dir=sort_dir,
+                                      filters=filters)
 
-        return [cls.from_db_record(record) for record in records)
+        return [cls.from_db_record(record) for record in records]
 
     @classmethod
-    def delete(cls, ctx, rule_id):
-        db_api.rule_delete(ctx, rule_id)
+    def delete(cls, context, rule_id):
+        db_api.rule_delete(context, rule_id)
 
-    def store(self, ctx):
+    def store(self, context):
         '''Store the rule into database and return its ID.'''
         timestamp = timeutils.utcnow()
 
@@ -150,11 +152,11 @@ class Rule(object):
         if self.id:
             self.updated_at = timestamp
             values['updated_at'] = timestamp
-            db_api.rule_update(ctx, self.id, values)
+            db_api.rule_update(context, self.id, values)
         else:
             self.created_at = timestamp
             values['created_at'] = timestamp
-            rule = db_api.rule_create(ctx, values)
+            rule = db_api.rule_create(context, values)
             self.id = rule.id
 
         return self.id

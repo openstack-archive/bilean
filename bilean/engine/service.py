@@ -21,16 +21,16 @@ from oslo_service import service
 from bilean.common import context as bilean_context
 from bilean.common import exception
 from bilean.common.i18n import _
-from bilean.common.i18n import _LI
 from bilean.common.i18n import _LE
+from bilean.common.i18n import _LI
 from bilean.common import messaging as rpc_messaging
 from bilean.common import schema
-from bilean.engine import scheduler
 from bilean.engine import clients as bilean_clients
 from bilean.engine import environment
 from bilean.engine import event as event_mod
 from bilean.engine import policy as policy_mod
 from bilean.engine import resource as resource_mod
+from bilean.engine import scheduler
 from bilean.engine import user as user_mod
 from bilean.rules import base as rule_base
 
@@ -55,7 +55,7 @@ class EngineService(service.Service):
         self.host = host
         self.topic = topic
 
-        self.bilean_scheduler = None
+        self.scheduler = None
         self.engine_id = None
         self.target = None
         self._rpc_server = None
@@ -68,15 +68,15 @@ class EngineService(service.Service):
     def start(self):
         self.engine_id = str(uuid.uuid4())
 
-        LOG.info(_LI("initialise bilean users from keystone.")
-        user_mod.User.init_users(self.context) 
+        LOG.info(_LI("initialise bilean users from keystone."))
+        user_mod.User.init_users(self.context)
 
-        self.bilean_scheduler = scheduler.BileanScheduler(
-            engine_id=self.engine_id, context=self.context)
+        self.scheduler = scheduler.BileanScheduler(engine_id=self.engine_id,
+                                                   context=self.context)
         LOG.info(_LI("Starting billing scheduler for engine: %s"),
                  self.engine_id)
-        self.bilean_scheduler.init_scheduler()
-        self.bilean_scheduler.start()
+        self.scheduler.init_scheduler()
+        self.scheduler.start()
 
         LOG.info(_LI("Starting rpc server for engine: %s"), self.engine_id)
         target = oslo_messaging.Target(version=self.RPC_API_VERSION,
@@ -104,7 +104,7 @@ class EngineService(service.Service):
 
         LOG.info(_LI("Stopping billing scheduler for engine: %s"),
                  self.engine_id)
-        self.bilean_scheduler.stop()
+        self.scheduler.stop()
 
         super(EngineService, self).stop()
 
@@ -128,7 +128,7 @@ class EngineService(service.Service):
         user.do_recharge(cnxt, value)
         # As user has been updated, the billing job for the user
         # should to be updated too.
-        self.bilean_scheduler.update_user_job(user)
+        self.scheduler.update_user_job(user)
         return user.to_dict()
 
     def user_delete(self, user_id):
@@ -143,14 +143,14 @@ class EngineService(service.Service):
             msg = _("The specified rule type (%(type)s) is not supported."
                     ) % {"type": type_name}
             raise exception.BileanBadRequest(msg=msg)
-        
+
         LOG.info(_LI("Creating rule type: %(type)s, name: %(name)s."),
                  {'type': type_name, 'name': name})
         rule = plugin(name, spec, metadata=metadata)
         try:
             rule.validate()
         except exception.InvalidSpec as ex:
-            msg = six.text_type()
+            msg = six.text_type(ex)
             LOG.error(_LE("Failed in creating rule: %s"), msg)
             raise exception.BileanBadRequest(msg=msg)
 
@@ -189,7 +189,7 @@ class EngineService(service.Service):
         count = resources.get('count', 1)
         total_rate = 0
         for resource in resources['resources']:
-            rule = policy.find_rule(cnxt, resource['resource_type']) 
+            rule = policy.find_rule(cnxt, resource['resource_type'])
             res = resource_mod.Resource('FAKE_ID', user.id,
                                         resource['resource_type'],
                                         resource['properties'])
@@ -197,7 +197,7 @@ class EngineService(service.Service):
         if count > 1:
             total_rate = total_rate * count
         # Pre 1 hour bill for resources
-        pre_bill = ratecount * 3600
+        pre_bill = total_rate * 3600
         if pre_bill > user.balance:
             return dict(validation=False)
         return dict(validation=True)
@@ -225,22 +225,22 @@ class EngineService(service.Service):
 
         # Update user with resource
         user.update_with_resource(self.context, resource)
-        
+
         # As the rate of user has changed, the billing job for the user
-        # should change too.  self.bilean_scheduler.update_user_job(user)
+        # should change too.  self.scheduler.update_user_job(user)
 
         return resource.to_dict()
 
     @bilean_context.request_context
     def resource_list(self, cnxt, show_deleted=False, limit=None,
-                     marker=None, sort_keys=None, sort_dir=None,
-                     filters=None, project_safe=True):
+                      marker=None, sort_keys=None, sort_dir=None,
+                      filters=None, tenant_safe=True):
         resources = resource_mod.Resource.load_all(cnxt, filters=filters,
                                                    show_deleted=show_deleted,
                                                    limit=limit, marker=marker,
                                                    sort_keys=sort_keys,
                                                    sort_dir=sort_dir,
-                                                   project_safe=project_safe))
+                                                   tenant_safe=tenant_safe)
         return {'resources': [r.to_dict() for r in resources]}
 
     @bilean_context.request_context
@@ -254,7 +254,7 @@ class EngineService(service.Service):
             self.context, resource_id=resource['id'])
         old_rate = res.rate
         res.properties = resource['properties']
-        rule = rule_mod.Rule.load(self.context, rule_id=res.rule_id)
+        rule = rule_base.Rule.load(self.context, rule_id=res.rule_id)
         res.rate = rule.get_price(res)
         res.store(self.context)
         res.d_rate = res.rate - old_rate
@@ -262,15 +262,15 @@ class EngineService(service.Service):
         user = user_mod.User.load(self.context, res.user_id)
         user.update_with_resource(self.context, res, action='update')
 
-        self.bilean_scheduler.update_user_job(user)
+        self.scheduler.update_user_job(user)
 
     def resource_delete(self, resource):
         """Do resource delete"""
         res = resource_mod.Resource.load(
             self.context, resource_id=resource['id'])
-        user = user_mod.User.load(self.context, user_id=resource['user_id']
+        user = user_mod.User.load(self.context, user_id=resource['user_id'])
         user.update_with_resource(self.context, res, action='delete')
-        self.bilean_scheduler.update_user_job(user)
+        self.scheduler.update_user_job(user)
         try:
             res.do_delete(self.context)
         except Exception as ex:
@@ -279,11 +279,11 @@ class EngineService(service.Service):
 
     @bilean_context.request_context
     def event_list(self, cnxt, filters=None, limit=None, marker=None,
-                   sort_keys=None, sort_dir=None, project_safe=True):
-        events = event_mod.Event.load_all(context, limit=limit,
+                   sort_keys=None, sort_dir=None, tenant_safe=True):
+        events = event_mod.Event.load_all(cnxt, limit=limit,
                                           marker=marker,
                                           sort_keys=sort_keys,
                                           sort_dir=sort_dir,
                                           filters=filters,
-                                          project_safe=project_safe)
+                                          tenant_safe=tenant_safe)
         return {'events': [e.to_dict() for e in events]}

@@ -11,6 +11,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from bilean.common import exception
 from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.rules import base as rule_base
@@ -30,9 +31,8 @@ class Policy(object):
         self.updated_at = kwargs.get('updated_at', None)
         self.deleted_at = kwargs.get('deleted_at', None)
 
-    def store(context, values):
-        """Store the policy record into database table.
-        """
+    def store(self, context, values):
+        """Store the policy record into database table."""
 
         values = {
             'rules': self.rules,
@@ -71,12 +71,12 @@ class Policy(object):
 
     @classmethod
     def load(cls, context, policy_id=None, policy=None, show_deleted=False,
-             project_safe=True):
+             tenant_safe=True):
         '''Retrieve a policy from database.'''
         if policy is None:
             policy = db_api.policy_get(context, policy_id,
                                        show_deleted=show_deleted,
-                                       project_safe=project_safe)
+                                       tenant_safe=tenant_safe)
             if policy is None:
                 raise exception.PolicyNotFound(policy=policy_id)
 
@@ -85,7 +85,7 @@ class Policy(object):
     @classmethod
     def load_all(cls, context, show_deleted=False, limit=None,
                  marker=None, sort_keys=None, sort_dir=None,
-                 filters=None, project_safe=True):
+                 filters=None, tenant_safe=True):
         '''Retrieve all policies of from database.'''
 
         records = db_api.policy_get_all(context, show_deleted=show_deleted,
@@ -93,7 +93,7 @@ class Policy(object):
                                         sort_keys=sort_keys,
                                         sort_dir=sort_dir,
                                         filters=filters,
-                                        project_safe=project_safe)
+                                        tenant_safe=tenant_safe)
 
         return [cls._from_db_record(record) for record in records]
 

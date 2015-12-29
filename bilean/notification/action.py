@@ -47,10 +47,10 @@ class Action(object):
     def do_delete(self):
         return NotImplemented
 
-    
+
 class ResourceAction(Action):
     """Notification controller for Resources."""
-    
+
     def __init__(self, cnxt, action, data):
         super(ResourceAction, self).__init__(cnxt, action, data)
 

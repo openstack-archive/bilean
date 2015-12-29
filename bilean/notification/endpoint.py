@@ -13,8 +13,9 @@
 
 from bilean.common import context
 from bilean.common.i18n import _
-from bilean.notification import converter
+from bilean.common.i18n import _LE
 from bilean.notification import action as notify_action
+from bilean.notification import converter
 
 from oslo_log import log as logging
 import oslo_messaging
@@ -52,18 +53,17 @@ class EventsNotificationEndpoint(object):
         """Convert notifcation to user."""
         user_id = notification['payload'].get('resource_info', None)
         if not user_id:
-            LOG.error(_LE("Cannot retrieve user_id from notification: %s") %
-                          notification)
+            LOG.error(_LE("Cannot retrieve user_id from notification: %s"),
+                      notification)
             return oslo_messaging.NotificationResult.HANDLED
         action = self._get_action(notification['event_type'])
         if action:
             act = notify_action.UserAction(self.cnxt, action, user_id)
             LOG.info(_("Notify engine to %(action)s user: %(user)s") %
-                     {'action': action, 'user': user})
+                     {'action': action, 'user': user_id})
             act.execute()
 
         return oslo_messaging.NotificationResult.HANDLED
-
 
     def process_resource_notification(self, notification):
         """Convert notifcation to resources."""

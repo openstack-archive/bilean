@@ -12,17 +12,20 @@
 #    under the License.
 
 '''Implementation of SQLAlchemy backend.'''
+import six
 import sys
 
 from oslo_config import cfg
 from oslo_db.sqlalchemy import session as db_session
+from oslo_db.sqlalchemy import utils
 from oslo_log import log as logging
 
 from sqlalchemy.orm.session import Session
-from sqlalchemy.sql import func
 
 from bilean.common import exception
 from bilean.common.i18n import _
+from bilean.common import params
+from bilean.db.sqlalchemy import filters as db_filters
 from bilean.db.sqlalchemy import migration
 from bilean.db.sqlalchemy import models
 
@@ -54,19 +57,49 @@ def model_query(context, *args):
     return query
 
 
+def _get_sort_keys(sort_keys, mapping):
+    '''Returns an array containing only whitelisted keys
+
+    :param sort_keys: an array of strings
+    :param mapping: a mapping from keys to DB column names
+    :returns: filtered list of sort keys
+    '''
+    if isinstance(sort_keys, six.string_types):
+        sort_keys = [sort_keys]
+    return [mapping[key] for key in sort_keys or [] if key in mapping]
+
+
+def _paginate_query(context, query, model, limit=None, marker=None,
+                    sort_keys=None, sort_dir=None, default_sort_keys=None):
+    if not sort_keys:
+        sort_keys = default_sort_keys or []
+        if not sort_dir:
+            sort_dir = 'asc'
+
+    model_marker = None
+    if marker:
+        model_marker = model_query(context, model).get(marker)
+    try:
+        query = utils.paginate_query(query, model, limit, sort_keys,
+                                     model_marker, sort_dir)
+    except utils.InvalidSortKey:
+        raise exception.InvalidParameter(name='sort_keys', value=sort_keys)
+    return query
+
+
 def soft_delete_aware_query(context, *args, **kwargs):
-        """Query helper that accounts for context's `show_deleted` field.
+    """Query helper that accounts for context's `show_deleted` field.
 
-        :param show_deleted: if True, overrides context's show_deleted field.
-        """
+    :param show_deleted: if True, overrides context's show_deleted field.
+    """
 
-        query = model_query(context, *args)
-        show_deleted = kwargs.get('show_deleted') or context.show_deleted
+    query = model_query(context, *args)
+    show_deleted = kwargs.get('show_deleted') or context.show_deleted
 
-        if not show_deleted:
-            query = query.filter_by(deleted_at=None)
+    if not show_deleted:
+        query = query.filter_by(deleted_at=None)
 
-        return query
+    return query
 
 
 def _session(context):
@@ -83,13 +116,18 @@ def db_version(engine):
     return migration.db_version(engine)
 
 
-def user_get(context, user_id):
-    result = model_query(context, models.User).get(user_id)
+def user_get(context, user_id, show_deleted=False, tenant_safe=True):
+    query = model_query(context, models.User)
+    user = query.get(user_id)
 
-    if not result:
-        raise exception.NotFound(_('User with id %s not found') % user_id)
+    deleted_ok = show_deleted or context.show_deleted
+    if user is None or user.deleted_at is not None and not deleted_ok:
+        return None
 
-    return result
+    if tenant_safe and context.tenant_id != user.user_id:
+        return None
+
+    return user
 
 
 def user_update(context, user_id, values):
@@ -103,7 +141,6 @@ def user_update(context, user_id, values):
 
     user.update(values)
     user.save(_session(context))
-    return user_get(context, user_id)
 
 
 def user_create(context, values):
@@ -114,42 +151,82 @@ def user_create(context, values):
 
 
 def user_delete(context, user_id):
+    session = _session(context)
     user = user_get(context, user_id)
-    session = Session.object_session(user)
-    session.delete(user)
+    if not user:
+        raise exception.NotFound(_('Attempt to delete a user with id: '
+                                 '%(id)s %(msg)s') % {
+                                     'id': user_id,
+                                     'msg': 'that does not exist'})
+    # Delete all related resource records
+    for resource in user.resources:
+        session.delete(resource)
+
+    # Delete all related event records
+    for event in user.events:
+        session.delete(event)
+
+    user.soft_delete(session=session)
     session.flush()
 
 
-def user_get_all(context):
-    results = model_query(context, models.User).all()
+def user_get_all(context, show_deleted=False, limit=None,
+                 marker=None, sort_keys=None, sort_dir=None,
+                 filters=None):
+    query = soft_delete_aware_query(context, models.User,
+                                    show_deleted=show_deleted)
 
-    if not results:
+    if filters is None:
+        filters = {}
+
+    sort_key_map = {
+        params.USER_CREATED_AT: models.User.created_at.key,
+        params.USER_UPDATED_AT: models.User.updated_at.key,
+        params.USER_BALANCE: models.User.balance.key,
+        params.USER_STATUS: models.User.status.key,
+    }
+    keys = _get_sort_keys(sort_keys, sort_key_map)
+
+    query = db_filters.exact_filter(query, models.User, filters)
+    return _paginate_query(context, query, models.User,
+                           limit=limit, marker=marker,
+                           sort_keys=keys, sort_dir=sort_dir,
+                           default_sort_keys=['created_at']).all()
+
+
+def rule_get(context, rule_id, show_deleted=False):
+    query = model_query(context, models.Rule)
+    rule = query.get(rule_id)
+
+    deleted_ok = show_deleted or context.show_deleted
+    if rule is None or rule.deleted_at is not None and not deleted_ok:
         return None
 
-    return results
+    return rule
 
 
-def rule_get(context, rule_id):
-    result = model_query(context, models.Rule).get(rule_id)
+def rule_get_all(context, show_deleted=False, limit=None,
+                 marker=None, sort_keys=None, sort_dir=None,
+                 filters=None):
+    query = soft_delete_aware_query(context, models.Rule,
+                                    show_deleted=show_deleted)
 
-    if not result:
-        raise exception.NotFound(_('Rule with id %s not found') % rule_id)
+    if filters is None:
+        filters = {}
 
-    return result
+    sort_key_map = {
+        params.RULE_NAME: models.Rule.name.key,
+        params.RULE_TYPE: models.Rule.type.key,
+        params.RULE_CREATED_AT: models.Rule.created_at.key,
+        params.RULE_UPDATED_AT: models.Rule.updated_at.key,
+    }
+    keys = _get_sort_keys(sort_keys, sort_key_map)
 
-
-def rule_get_all(context):
-    return model_query(context, models.Rule).all()
-
-
-def get_rule_by_filters(context, **filters):
-    filter_keys = filters.keys()
-    query = model_query(context, models.Rule)
-    if "resource_type" in filter_keys:
-        query = query.filter_by(resource_type=filters["resource_type"])
-    if "size" in filter_keys:
-        query = query.filter_by(size=filters["size"])
-    return query.all()
+    query = db_filters.exact_filter(query, models.Rule, filters)
+    return _paginate_query(context, query, models.Rule,
+                           limit=limit, marker=marker,
+                           sort_keys=keys, sort_dir=sort_dir,
+                           default_sort_keys=['created_at']).all()
 
 
 def rule_create(context, values):
@@ -174,55 +251,58 @@ def rule_update(context, rule_id, values):
 
 def rule_delete(context, rule_id):
     rule = rule_get(context, rule_id)
+
+    if not rule:
+        raise exception.NotFound(_('Attempt to delete a rule with id: '
+                                 '%(id)s %(msg)s') % {
+                                     'id': rule_id,
+                                     'msg': 'that does not exist'})
     session = Session.object_session(rule)
-    session.delete(rule)
+    rule.soft_delete(session=session)
     session.flush()
 
 
-def resource_get(context, resource_id):
-    result = model_query(context, models.Resource).get(resource_id)
+def resource_get(context, resource_id, show_deleted=False, tenant_safe=True):
+    query = model_query(context, models.Resource)
+    resource = query.get(resource_id)
 
-    if not result:
-        raise exception.NotFound(_('Resource with id %s not found') %
-                                 resource_id)
+    deleted_ok = show_deleted or context.show_deleted
+    if resource is None or resource.deleted_at is not None and not deleted_ok:
+        return None
 
-    return result
+    if tenant_safe and context.tenant_id != resource.user_id:
+        return None
 
-
-def resource_get_by_physical_resource_id(context,
-                                         physical_resource_id,
-                                         resource_type):
-    result = (model_query(context, models.Resource)
-              .filter_by(resource_ref=physical_resource_id)
-              .filter_by(resource_type=resource_type)
-              .first())
-
-    if not result:
-        raise exception.NotFound(_('Resource with physical_resource_id: '
-                                   '%(resource_id)s, resource_type: '
-                                   '%(resource_type)s not found.') % {
-                                       'resource_id': physical_resource_id,
-                                       'resource_type': resource_type})
-
-    return result
+    return resource
 
 
-def resource_get_all(context, **filters):
-    if filters.get('show_deleted') is None:
-        filters['show_deleted'] = False
-    query = soft_delete_aware_query(context, models.Resource, **filters)
-    if "resource_type" in filters:
-        query = query.filter_by(resource_type=filters["resource_type"])
-    if "user_id" in filters:
-        query = query.filter_by(user_id=filters["user_id"])
-    return query.all()
+def resource_get_all(context, user_id=None, show_deleted=False,
+                     limit=None, marker=None, sort_keys=None, sort_dir=None,
+                     filters=None, tenant_safe=True):
+    query = soft_delete_aware_query(context, models.Resource,
+                                    show_deleted=show_deleted)
 
+    if tenant_safe:
+        query = query.filter_by(user_id=context.tenant_id)
 
-def resource_get_by_user_id(context, user_id, show_deleted=False):
-    query = soft_delete_aware_query(
-        context, models.Resource, show_deleted=show_deleted
-    ).filter_by(user_id=user_id).all()
-    return query
+    elif user_id:
+        query = query.filter_by(user_id=user_id)
+
+    if filters is None:
+        filters = {}
+
+    sort_key_map = {
+        params.RES_CREATED_AT: models.Resource.created_at.key,
+        params.RES_UPDATED_AT: models.Resource.updated_at.key,
+        params.RES_RESOURCE_TYPE: models.Resource.resource_type.key,
+        params.RES_USER_ID: models.Resource.user_id.key,
+    }
+    keys = _get_sort_keys(sort_keys, sort_key_map)
+    query = db_filters.exact_filter(query, models.Resource, filters)
+    return _paginate_query(context, query, models.Node,
+                           limit=limit, marker=marker,
+                           sort_keys=keys, sort_dir=sort_dir,
+                           default_sort_keys=['created_at']).all()
 
 
 def resource_create(context, values):
@@ -246,23 +326,14 @@ def resource_update(context, resource_id, values):
     return resource
 
 
-def resource_update_by_resource(context, res):
-    resource = resource_get_by_physical_resource_id(
-        context, res['resource_ref'], res['resource_type'])
-
-    if not resource:
-        raise exception.NotFound(_('Attempt to update a resource: '
-                                 '%(res)s %(msg)s') % {
-                                     'res': res,
-                                     'msg': 'that does not exist'})
-
-    resource.update(res)
-    resource.save(_session(context))
-    return resource
-
-
 def resource_delete(context, resource_id, soft_delete=True):
     resource = resource_get(context, resource_id)
+
+    if not resource:
+        raise exception.NotFound(_('Attempt to delete a resource with id: '
+                                 '%(id)s %(msg)s') % {
+                                     'id': resource_id,
+                                     'msg': 'that does not exist'})
     session = Session.object_session(resource)
     if soft_delete:
         resource.soft_delete(session=session)
@@ -271,84 +342,52 @@ def resource_delete(context, resource_id, soft_delete=True):
     session.flush()
 
 
-def resource_delete_by_physical_resource_id(context,
-                                            physical_resource_id,
-                                            resource_type,
-                                            soft_delete=True):
-    resource = resource_get_by_physical_resource_id(
-        context, physical_resource_id, resource_type)
-    session = Session.object_session(resource)
-    if soft_delete:
-        resource.soft_delete(session=session)
-    else:
-        session.delete(resource)
-    session.flush()
+def event_get(context, event_id, tenant_safe=True):
+    query = model_query(context, models.Event)
+    event = query.get(event_id)
+
+    if event is None:
+        return None
+
+    if tenant_safe and context.tenant_id != event.user_id:
+        return None
+
+    return event
 
 
-def resource_delete_by_user_id(context, user_id):
-    resource = resource_get_by_user_id(context, user_id)
-    session = Session.object_session(resource)
-    session.delete(resource)
-    session.flush()
+def event_get_all(context, user_id=None, show_deleted=False,
+                  filters=None, limit=None, marker=None, sort_keys=None,
+                  sort_dir=None, tenant_safe=True, start_time=None,
+                  end_time=None):
+    query = soft_delete_aware_query(context, models.Event,
+                                    show_deleted=show_deleted)
 
+    if tenant_safe:
+        query = query.filter_by(user_id=context.tenant_id)
 
-def event_get(context, event_id):
-    result = model_query(context, models.Event).get(event_id)
-
-    if not result:
-        raise exception.NotFound(_('Event with id %s not found') % event_id)
-
-    return result
-
-
-def event_get_by_user_id(context, user_id):
-    query = model_query(context, models.Event).filter_by(user_id=user_id)
-    return query
-
-
-def event_get_by_user_and_resource(context,
-                                   user_id,
-                                   resource_type,
-                                   action=None):
-    query = (model_query(context, models.Event)
-             .filter_by(user_id=user_id)
-             .filter_by(resource_type=resource_type)
-             .filter_by(action=action).all())
-    return query
-
-
-def events_get_all_by_filters(context,
-                              user_id=None,
-                              resource_type=None,
-                              start=None,
-                              end=None,
-                              action=None,
-                              aggregate=None):
-    if aggregate == 'sum':
-        query_prefix = model_query(
-            context, models.Event.resource_type, func.sum(models.Event.value)
-        ).group_by(models.Event.resource_type)
-    elif aggregate == 'avg':
-        query_prefix = model_query(
-            context, models.Event.resource_type, func.avg(models.Event.value)
-        ).group_by(models.Event.resource_type)
-    else:
-        query_prefix = model_query(context, models.Event)
-    if not context.is_admin:
-        if context.tenant_id:
-            query_prefix = query_prefix.filter_by(user_id=context.tenant_id)
     elif user_id:
-        query_prefix = query_prefix.filter_by(user_id=user_id)
-    if resource_type:
-        query_prefix = query_prefix.filter_by(resource_type=resource_type)
-    if action:
-        query_prefix = query_prefix.filter_by(action=action)
-    if start:
-        query_prefix = query_prefix.filter(models.Event.created_at >= start)
-    if end:
-        query_prefix = query_prefix.filter(models.Event.created_at <= end)
+        query = query.filter_by(user_id=user_id)
 
-    return query_prefix.all()
+    if start_time:
+        query = query.filter_by(models.Event.timestamp >= start_time)
+    if end_time:
+        query = query.filter_by(models.Event.timestamp <= end_time)
+
+    if filters is None:
+        filters = {}
+
+    sort_key_map = {
+        params.EVENT_ACTION: models.Event.action.key,
+        params.EVENT_RESOURCE_TYPE: models.Event.resource_type.key,
+        params.EVENT_TIMESTAMP: models.Event.timestamp.key,
+        params.EVENT_USER_ID: models.Event.user_id.key,
+    }
+    keys = _get_sort_keys(sort_keys, sort_key_map)
+    query = db_filters.exact_filter(query, models.Resource, filters)
+    return _paginate_query(context, query, models.Node,
+                           limit=limit, marker=marker,
+                           sort_keys=keys, sort_dir=sort_dir,
+                           default_sort_keys=['timestamp']).all()
 
 
 def event_create(context, values):
@@ -358,20 +397,6 @@ def event_create(context, values):
     return event_ref
 
 
-def event_delete(context, event_id):
-    event = event_get(context, event_id)
-    session = Session.object_session(event)
-    session.delete(event)
-    session.flush()
-
-
-def event_delete_by_user_id(context, user_id):
-    event = event_get(context, user_id)
-    session = Session.object_session(event)
-    session.delete(event)
-    session.flush()
-
-
 def job_create(context, values):
     job_ref = models.Job()
     job_ref.update(values)
@@ -379,37 +404,22 @@ def job_create(context, values):
     return job_ref
 
 
-def job_get(context, job_id):
-    result = model_query(context, models.Job).get(job_id)
+def job_get_all(context, engine_id=None):
+    query = model_query(context, models.Job)
+    if engine_id:
+        query = query.filter_by(engine_id=engine_id)
 
-    if not result:
-        raise exception.NotFound(_('Job with id %s not found') % job_id)
-
-    return result
-
-
-def job_get_by_engine_id(context, engine_id):
-    query = (model_query(context, models.Job)
-             .filter_by(engine_id=engine_id).all())
-    return query
-
-
-def job_update(context, job_id, values):
-    job = job_get(context, job_id)
-
-    if not job:
-        raise exception.NotFound(_('Attempt to update a job with id: '
-                                 '%(id)s %(msg)s') % {
-                                     'id': job_id,
-                                     'msg': 'that does not exist'})
-
-    job.update(values)
-    job.save(_session(context))
-    return job
+    return query.all()
 
 
 def job_delete(context, job_id):
-    job = job_get(context, job_id)
+    job = model_query(context, models.Job).get(job_id)
+
+    if job is None:
+        raise exception.NotFound(_('Attempt to delete a job with id: '
+                                 '%(id)s %(msg)s') % {
+                                     'id': job_id,
+                                     'msg': 'that does not exist'})
     session = Session.object_session(job)
     session.delete(job)
     session.flush()

@@ -57,7 +57,4 @@ if __name__ == '__main__':
     srv = engine.EngineService(cfg.CONF.host, params.ENGINE_TOPIC)
     launcher = service.launch(cfg.CONF, srv,
                               workers=cfg.CONF.num_engine_workers)
-    # We create the periodic tasks here, which mean they are created
-    # only in the parent process when num_engine_workers>1 is specified
-    srv.create_bilean_tasks()
     launcher.wait()

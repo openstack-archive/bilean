@@ -11,9 +11,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import itertools
-import six
-
 from webob import exc
 
 from bilean.api.openstack.v1 import util

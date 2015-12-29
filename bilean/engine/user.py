@@ -11,13 +11,14 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common import utils
 from bilean.db import api as db_api
-from bilean.engine import api
 from bilean.engine import event as event_mod
 from bilean.engine import resource as resource_mod
 
+from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import timeutils
 
@@ -34,7 +35,7 @@ class User(object):
     )
 
     def __init__(self, user_id, **kwargs):
-        self.id = user_id 
+        self.id = user_id
         self.policy_id = kwargs.get('policy_id', None)
         self.balance = kwargs.get('balance', 0)
         self.rate = kwargs.get('rate', 0.0)
@@ -71,7 +72,7 @@ class User(object):
             user = db_api.user_create(context, values)
             self.created_at = user.created_at
 
-        return self.id 
+        return self.id
 
     @classmethod
     def init_users(cls, context):
@@ -80,13 +81,14 @@ class User(object):
         tenants = k_client.tenants.list()
         tenant_ids = [tenant.id for tenant in tenants]
 
-        users = self.load_all(context)
+        users = cls.load_all(context)
         user_ids = [user.id for user in users]
         for tid in tenant_ids:
             if tid not in user_ids:
                 user = cls(tid, status=cls.INIT,
-                           status_reason='Init from keystone') 
+                           status_reason='Init from keystone')
                 user.store(context)
+        return True
 
     @classmethod
     def _from_db_record(cls, record):
@@ -111,12 +113,12 @@ class User(object):
 
     @classmethod
     def load(cls, context, user_id=None, user=None, realtime=False,
-             show_deleted=False, project_safe=True):
+             show_deleted=False, tenant_safe=True):
         '''Retrieve a user from database.'''
         if user is None:
             user = db_api.user_get(context, user_id,
                                    show_deleted=show_deleted,
-                                   project_safe=project_safe)
+                                   tenant_safe=tenant_safe)
             if user is None:
                 raise exception.UserNotFound(user=user_id)
 
@@ -127,19 +129,17 @@ class User(object):
             seconds = (timeutils.utcnow() - u.last_bill).total_seconds()
             u.balance -= u.rate * seconds
         return u
-            
 
     @classmethod
     def load_all(cls, context, show_deleted=False, limit=None,
                  marker=None, sort_keys=None, sort_dir=None,
-                 filters=None, project_safe=True):
+                 filters=None):
         '''Retrieve all users of from database.'''
 
         records = db_api.user_get_all(context, show_deleted=show_deleted,
                                       limit=limit, marker=marker,
                                       sort_keys=sort_keys, sort_dir=sort_dir,
-                                      filters=filters,
-                                      project_safe=project_safe)
+                                      filters=filters)
 
         return [cls._from_db_record(record) for record in records]
 
@@ -164,7 +164,6 @@ class User(object):
         self.status = status
         if reason:
             self.status_reason = reason
-        #db_api.user_update(context, self.id, values)
 
     def update_with_resource(self, context, resource, action='create'):
         '''Update user with resource'''
@@ -178,7 +177,7 @@ class User(object):
         elif 'update' == action:
             self.do_bill(context)
             d_rate = resource.d_rate
-        self._change_user_rate(cnxt, d_rate)
+        self._change_user_rate(context, d_rate)
         self.store(context)
 
     def _change_user_rate(self, context, d_rate):
@@ -186,15 +185,15 @@ class User(object):
         old_rate = self.rate
         new_rate = old_rate + d_rate
         if old_rate == 0 and new_rate > 0:
-           self.last_bill = timeutils.utcnow()
+            self.last_bill = timeutils.utcnow()
         if d_rate > 0 and self.status == self.FREE:
             self.status = self.ACTIVE
         elif d_rate < 0:
             if new_rate == 0 and self.balance > 0:
-                self.status = self.FREE 
+                self.status = self.FREE
             elif self.status == self.WARNING:
-                prior_notify_time = cfg.CONF.bilean_task.prior_notify_time * 60
-                rest_usage =  prior_notify_time * new_rate
+                p_time = cfg.CONF.bilean_task.prior_notify_time * 3600
+                rest_usage = p_time * new_rate
                 if self.balance > rest_usage:
                     self.status = self.ACTIVE
         self.rate = new_rate
@@ -207,15 +206,15 @@ class User(object):
         if self.status == self.INIT and self.balance > 0:
             self.set_status(self.ACTIVE, reason='Recharged')
         elif self.status == self.FREEZE and self.balance > 0:
-            reason = "Status change from freeze to active because "
-                     "of recharge."
+            reason = _("Status change from freeze to active because "
+                       "of recharge.")
             self.set_status(self.ACTIVE, reason=reason)
         elif self.status == self.WARNING:
-            prior_notify_time = cfg.CONF.bilean_task.prior_notify_time * 60
+            prior_notify_time = cfg.CONF.bilean_task.prior_notify_time * 3600
             rest_usage = prior_notify_time * self.rate
             if self.balance > rest_usage:
-                reason = "Status change from warning to active because "
-                         "of recharge."
+                reason = _("Status change from warning to active because "
+                           "of recharge.")
                 self.set_status(self.ACTIVE, reason=reason)
         event_mod.record(context, self.id, action='recharge', value=value)
         self.store(context)

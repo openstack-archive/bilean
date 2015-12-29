@@ -41,8 +41,10 @@ def db_version(engine):
     return IMPL.db_version(engine)
 
 
-def user_get(context, user_id):
-    return IMPL.user_get(context, user_id)
+def user_get(context, user_id, show_deleted=False, tenant_safe=True):
+    return IMPL.user_get(context, user_id,
+                         show_deleted=show_deleted,
+                         tenant_safe=tenant_safe)
 
 
 def user_update(context, user_id, values):
@@ -57,32 +59,26 @@ def user_delete(context, user_id):
     return IMPL.user_delete(context, user_id)
 
 
-def user_get_all(context):
-    return IMPL.user_get_all(context)
+def user_get_all(context, show_deleted=False, limit=None,
+                 marker=None, sort_keys=None, sort_dir=None,
+                 filters=None):
+    return IMPL.user_get_all(context, show_deleted=show_deleted,
+                             limit=limit, marker=marker,
+                             sort_keys=sort_keys, sort_dir=sort_dir,
+                             filters=filters)
 
 
-def user_get_by_keystone_user_id(context, user_id):
-    return IMPL.user_get_by_keystone_user_id(context, user_id)
+def rule_get(context, rule_id, show_deleted=False):
+    return IMPL.rule_get(context, rule_id, show_deleted=False)
 
 
-def user_delete_by_keystone_user_id(context, user_id):
-    return IMPL.user_delete_by_keystone_user_id(context, user_id)
-
-
-def user_update_by_keystone_user_id(context, user_id, values):
-    return IMPL.user_update_by_keystone_user_id(context, user_id, values)
-
-
-def rule_get(context, rule_id):
-    return IMPL.rule_get(context, rule_id)
-
-
-def rule_get_all(context):
-    return IMPL.rule_get_all(context)
-
-
-def get_rule_by_filters(context, **filters):
-    return IMPL.get_rule_by_filters(context, **filters)
+def rule_get_all(context, show_deleted=False, limit=None,
+                 marker=None, sort_keys=None, sort_dir=None,
+                 filters=None):
+    return IMPL.rule_get_all(context, show_deleted=show_deleted,
+                             limit=limit, marker=marker,
+                             sort_keys=sort_keys, sort_dir=sort_dir,
+                             filters=filters)
 
 
 def rule_create(context, values):
@@ -97,19 +93,20 @@ def rule_delete(context, rule_id):
     return IMPL.rule_delete(context, rule_id)
 
 
-def resource_get(context, resource_id):
-    return IMPL.resource_get(context, resource_id)
+def resource_get(context, resource_id, show_deleted=False, tenant_safe=True):
+    return IMPL.resource_get(context, resource_id,
+                             show_deleted=show_deleted,
+                             tenant_safe=tenant_safe)
 
 
-def resource_get_all(context, **filters):
-    return IMPL.resource_get_all(context, **filters)
-
-
-def resource_get_by_physical_resource_id(context,
-                                         physical_resource_id,
-                                         resource_type):
-    return IMPL.resource_get_by_physical_resource_id(
-        context, physical_resource_id, resource_type)
+def resource_get_all(context, user_id=None, show_deleted=False,
+                     limit=None, marker=None, sort_keys=None,
+                     sort_dir=None, filters=None, tenant_safe=True):
+    return IMPL.resource_get_all(context, user_id=user_id,
+                                 show_deleted=show_deleted,
+                                 limit=limit, marker=marker,
+                                 sort_keys=sort_keys, sort_dir=sort_dir,
+                                 filters=filters, tenant_safe=tenant_safe)
 
 
 def resource_create(context, values):
@@ -120,45 +117,24 @@ def resource_update(context, resource_id, values):
     return IMPL.resource_update(context, resource_id, values)
 
 
-def resource_update_by_resource(context, resource):
-    return IMPL.resource_update_by_resource(context, resource)
-
-
 def resource_delete(context, resource_id):
     IMPL.resource_delete(context, resource_id)
 
 
-def resource_delete_by_user_id(context, user_id):
-    IMPL.resource_delete(context, user_id)
+def event_get(context, event_id, tenant_safe=True):
+    return IMPL.event_get(context, event_id, tenant_safe=tenant_safe)
 
 
-def resource_delete_by_physical_resource_id(context,
-                                            physical_resource_id,
-                                            resource_type):
-    return IMPL.resource_delete_by_physical_resource_id(
-        context, physical_resource_id, resource_type)
-
-
-def event_get(context, event_id):
-    return IMPL.event_get(context, event_id)
-
-
-def event_get_by_user_id(context, user_id):
-    return IMPL.event_get_by_user_id(context, user_id)
-
-
-def event_get_by_user_and_resource(context,
-                                   user_id,
-                                   resource_type,
-                                   action=None):
-    return IMPL.event_get_by_user_and_resource(context,
-                                               user_id,
-                                               resource_type,
-                                               action)
-
-
-def events_get_all_by_filters(context, **filters):
-    return IMPL.events_get_all_by_filters(context, **filters)
+def event_get_all(context, user_id=None, show_deleted=False,
+                  filters=None, limit=None, marker=None,
+                  sort_keys=None, sort_dir=None, tenant_safe=True,
+                  start_time=None, end_time=None):
+    return IMPL.event_get_all(context, user_id=user_id,
+                              show_deleted=show_deleted,
+                              filters=filters, limit=limit,
+                              marker=marker, sort_keys=sort_keys,
+                              sort_dir=sort_dir, tenant_safe=tenant_safe,
+                              start_time=start_time, end_time=end_time)
 
 
 def event_create(context, values):
@@ -169,24 +145,12 @@ def event_delete(context, event_id):
     return IMPL.event_delete(context, event_id)
 
 
-def event_delete_by_user_id(context, user_id):
-    return IMPL.event_delete_by_user_id(context, user_id)
-
-
 def job_create(context, values):
     return IMPL.job_create(context, values)
 
 
-def job_get(context, job_id):
-    return IMPL.job_get(context, job_id)
-
-
-def job_get_by_engine_id(context, engine_id):
-    return IMPL.job_get_by_engine_id(context, engine_id)
-
-
-def job_update(context, job_id, values):
-    return IMPL.job_update(context, job_id, values)
+def job_get_all(context, engine_id=None):
+    return IMPL.job_get_all(context, engine_id=engine_id)
 
 
 def job_delete(context, job_id):

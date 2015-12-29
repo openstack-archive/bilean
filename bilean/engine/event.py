@@ -13,11 +13,14 @@
 
 import six
 
+from bilean.common import exception
 from bilean.common.i18n import _
+from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.engine import resource as bilean_resources
 
 from oslo_log import log as logging
+from oslo_utils import timeutils
 
 LOG = logging.getLogger(__name__)
 
@@ -30,7 +33,6 @@ class Event(object):
         self.user_id = kwargs.get('user_id', None)
         self.action = kwargs.get('action', None)
         self.resource_type = kwargs.get('resource_type', None)
-        self.action = kwargs.get('action', None)
         self.value = kwargs.get('value', 0)
 
     @classmethod
@@ -48,26 +50,31 @@ class Event(object):
         return cls(record.timestamp, **kwargs)
 
     @classmethod
-    def load(cls, context, db_event=None, event_id=None, project_safe=True):
+    def load(cls, context, db_event=None, event_id=None, tenant_safe=True):
         '''Retrieve an event record from database.'''
         if db_event is not None:
             return cls.from_db_record(db_event)
 
-        record = db_api.event_get(context, event_id, project_safe=project_safe)
+        record = db_api.event_get(context, event_id, tenant_safe=tenant_safe)
         if record is None:
             raise exception.EventNotFound(event=event_id)
 
         return cls.from_db_record(record)
 
     @classmethod
-    def load_all(cls, context, filters=None, limit=None, marker=None,
-                 sort_keys=None, sort_dir=None, project_safe=True):
+    def load_all(cls, context, user_id=None, show_deleted=False,
+                 filters=None, limit=None, marker=None, sort_keys=None,
+                 sort_dir=None, tenant_safe=True, start_time=None,
+                 end_time=None):
         '''Retrieve all events from database.'''
 
-        records = db_api.event_get_all(context, limit=limit, marker=marker,
+        records = db_api.event_get_all(context, user_id=user_id, limit=limit,
+                                       show_deleted=show_deleted,
+                                       marker=marker, filters=filters,
                                        sort_keys=sort_keys, sort_dir=sort_dir,
-                                       filters=filters,
-                                       project_safe=project_safe)
+                                       tenant_safe=tenant_safe,
+                                       start_time=start_time,
+                                       end_time=end_time)
 
         for record in records:
             yield cls.from_db_record(record)
@@ -120,17 +127,18 @@ def record(context, user_id, action=None, seconds=0, value=0):
             resources = bilean_resources.resource_get_all(
                 context, user_id=user_id)
             for resource in resources:
-                usage = resource['rate'] / 3600.0 * time_length
-                event_create(context,
-                             user_id=user_id,
-                             resource_id=resource['id'],
-                             resource_type=resource['resource_type'],
-                             action=action,
-                             value=usage)
+                usage = resource['rate'] * seconds
+                event = Event(timeutils.utcnow(),
+                              user_id=user_id,
+                              action=action,
+                              resource_type=resource['resource_type'],
+                              value=usage)
+                event.store(context)
         else:
-            event_create(context,
-                         user_id=user_id,
-                         action=action,
-                         value=recharge_value)
+            event = Event(timeutils.utcnow(),
+                          user_id=user_id,
+                          action=action,
+                          value=value)
+            event.store(context)
     except Exception as exc:
         LOG.error(_("Error generate events: %s") % six.text_type(exc))
