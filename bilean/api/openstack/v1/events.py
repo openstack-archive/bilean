@@ -14,7 +14,7 @@
 import itertools
 
 from bilean.api.openstack.v1 import util
-from bilean.common import params
+from bilean.common import consts
 from bilean.common import serializers
 from bilean.common import wsgi
 from bilean.rpc import client as rpc_client
@@ -75,7 +75,7 @@ class EventController(object):
 
     def _init_event_statistics(self):
         event_statistics = {}
-        for resource in params.RESOURCE_TYPES:
+        for resource in consts.RESOURCE_TYPES:
             event_statistics[resource] = 0
         return event_statistics
 

@@ -15,9 +15,9 @@ from oslo_log import log as logging
 import oslo_messaging
 from oslo_service import service
 
+from bilean.common import consts
 from bilean.common.i18n import _
 from bilean.common import messaging as bilean_messaging
-from bilean.common import params
 from bilean.notification import endpoint
 
 LOG = logging.getLogger(__name__)
@@ -36,12 +36,12 @@ class NotificationService(service.Service):
         super(NotificationService, self).start()
         self.transport = bilean_messaging.get_transport()
         self.targets.append(
-            oslo_messaging.Target(topic=params.NOTIFICATION_TOPICS))
+            oslo_messaging.Target(topic=consts.NOTIFICATION_TOPICS))
         listener = bilean_messaging.get_notification_listener(
             self.transport, self.targets, self.endpoints)
 
         LOG.info(_("Starting listener on topic: %s"),
-                 params.NOTIFICATION_TOPICS)
+                 consts.NOTIFICATION_TOPICS)
         listener.start()
         self.listeners.append(listener)
 

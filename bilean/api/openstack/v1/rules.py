@@ -15,8 +15,8 @@ from webob import exc
 
 from bilean.api.openstack.v1 import util
 from bilean.api import validator
+from bilean.common import consts
 from bilean.common.i18n import _
-from bilean.common import params
 from bilean.common import serializers
 from bilean.common import wsgi
 from bilean.rpc import client as rpc_client
@@ -29,17 +29,17 @@ class RuleData(object):
         self.data = data
 
     def name(self):
-        if params.RULE_NAME not in self.data:
+        if consts.RULE_NAME not in self.data:
             raise exc.HTTPBadRequest(_("No rule name specified"))
-        return self.data[params.RULE_NAME]
+        return self.data[consts.RULE_NAME]
 
     def spec(self):
-        if params.RULE_SPEC not in self.data:
+        if consts.RULE_SPEC not in self.data:
             raise exc.HTTPBadRequest(_("No rule spec provided"))
-        return self.data[params.RULE_SPEC]
+        return self.data[consts.RULE_SPEC]
 
     def metadata(self):
-        return self.data.get(params.RULE_METADATA, None)
+        return self.data.get(consts.RULE_METADATA, None)
 
 
 class RuleController(object):

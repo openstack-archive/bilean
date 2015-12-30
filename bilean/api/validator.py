@@ -15,9 +15,9 @@
 
 import six
 
+from bilean.common import consts
 from bilean.common import exception
 from bilean.common.i18n import _
-from bilean.common import params
 
 from oslo_log import log as logging
 from oslo_utils import uuidutils
@@ -122,7 +122,7 @@ def validate_resource(resource):
         raise exception.InvalidInput(message=msg)
     if resource['resource_type']:
         validate_string(resource['resource_type'],
-                        available_fields=params.RESOURCE_TYPES)
+                        available_fields=consts.RESOURCE_TYPES)
     else:
         msg = _('Expected resource_type field for resource')
         raise exception.InvalidInput(reason=msg)

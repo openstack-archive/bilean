@@ -22,9 +22,9 @@ from oslo_log import log as logging
 
 from sqlalchemy.orm.session import Session
 
+from bilean.common import consts
 from bilean.common import exception
 from bilean.common.i18n import _
-from bilean.common import params
 from bilean.db.sqlalchemy import filters as db_filters
 from bilean.db.sqlalchemy import migration
 from bilean.db.sqlalchemy import models
@@ -180,10 +180,10 @@ def user_get_all(context, show_deleted=False, limit=None,
         filters = {}
 
     sort_key_map = {
-        params.USER_CREATED_AT: models.User.created_at.key,
-        params.USER_UPDATED_AT: models.User.updated_at.key,
-        params.USER_BALANCE: models.User.balance.key,
-        params.USER_STATUS: models.User.status.key,
+        consts.USER_CREATED_AT: models.User.created_at.key,
+        consts.USER_UPDATED_AT: models.User.updated_at.key,
+        consts.USER_BALANCE: models.User.balance.key,
+        consts.USER_STATUS: models.User.status.key,
     }
     keys = _get_sort_keys(sort_keys, sort_key_map)
 
@@ -215,10 +215,10 @@ def rule_get_all(context, show_deleted=False, limit=None,
         filters = {}
 
     sort_key_map = {
-        params.RULE_NAME: models.Rule.name.key,
-        params.RULE_TYPE: models.Rule.type.key,
-        params.RULE_CREATED_AT: models.Rule.created_at.key,
-        params.RULE_UPDATED_AT: models.Rule.updated_at.key,
+        consts.RULE_NAME: models.Rule.name.key,
+        consts.RULE_TYPE: models.Rule.type.key,
+        consts.RULE_CREATED_AT: models.Rule.created_at.key,
+        consts.RULE_UPDATED_AT: models.Rule.updated_at.key,
     }
     keys = _get_sort_keys(sort_keys, sort_key_map)
 
@@ -292,10 +292,10 @@ def resource_get_all(context, user_id=None, show_deleted=False,
         filters = {}
 
     sort_key_map = {
-        params.RES_CREATED_AT: models.Resource.created_at.key,
-        params.RES_UPDATED_AT: models.Resource.updated_at.key,
-        params.RES_RESOURCE_TYPE: models.Resource.resource_type.key,
-        params.RES_USER_ID: models.Resource.user_id.key,
+        consts.RES_CREATED_AT: models.Resource.created_at.key,
+        consts.RES_UPDATED_AT: models.Resource.updated_at.key,
+        consts.RES_RESOURCE_TYPE: models.Resource.resource_type.key,
+        consts.RES_USER_ID: models.Resource.user_id.key,
     }
     keys = _get_sort_keys(sort_keys, sort_key_map)
     query = db_filters.exact_filter(query, models.Resource, filters)
@@ -377,10 +377,10 @@ def event_get_all(context, user_id=None, show_deleted=False,
         filters = {}
 
     sort_key_map = {
-        params.EVENT_ACTION: models.Event.action.key,
-        params.EVENT_RESOURCE_TYPE: models.Event.resource_type.key,
-        params.EVENT_TIMESTAMP: models.Event.timestamp.key,
-        params.EVENT_USER_ID: models.Event.user_id.key,
+        consts.EVENT_ACTION: models.Event.action.key,
+        consts.EVENT_RESOURCE_TYPE: models.Event.resource_type.key,
+        consts.EVENT_TIMESTAMP: models.Event.timestamp.key,
+        consts.EVENT_USER_ID: models.Event.user_id.key,
     }
     keys = _get_sort_keys(sort_keys, sort_key_map)
     query = db_filters.exact_filter(query, models.Resource, filters)

@@ -17,8 +17,8 @@
 Client side of the bilean engine RPC API.
 """
 
+from bilean.common import consts
 from bilean.common import messaging
-from bilean.common import params
 
 from oslo_config import cfg
 
@@ -30,7 +30,7 @@ class EngineClient(object):
 
     def __init__(self):
         self._client = messaging.get_rpc_client(
-            topic=params.ENGINE_TOPIC,
+            topic=consts.ENGINE_TOPIC,
             server=cfg.CONF.host,
             version=self.BASE_RPC_API_VERSION)
 
