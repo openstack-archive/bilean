@@ -26,6 +26,16 @@ RPC_ATTRs = (
     '1.0',
 )
 
+RPC_PARAMS = (
+    PARAM_SHOW_DELETED, PARAM_SHOW_NESTED, PARAM_LIMIT, PARAM_MARKER,
+    PARAM_GLOBAL_PROJECT, PARAM_SHOW_DETAILS,
+    PARAM_SORT_DIR, PARAM_SORT_KEYS,
+) = (
+    'show_deleted', 'show_nested', 'limit', 'marker',
+    'global_project', 'show_details',
+    'sort_dir', 'sort_keys',
+)
+
 USER_KEYS = (
     USER_ID, USER_POLICY_ID, USER_BALANCE, USER_RATE, USER_CREDIT,
     USER_LAST_BILL, USER_STATUS, USER_STATUS_REASION, USER_CREATED_AT,

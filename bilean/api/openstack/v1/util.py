@@ -56,12 +56,18 @@ def get_allowed_params(params, whitelist):
     """
     allowed_params = {}
 
-    for key, key_type in six.iteritems(whitelist):
-        value = params.get(key)
+    for key, get_type in six.iteritems(whitelist):
+        value = None
+        if get_type == 'single':
+            value = params.get(key)
+        elif get_type == 'multi':
+            value = params.getall(key)
+        elif get_type == 'mixed':
+            value = params.getall(key)
+            if isinstance(value, list) and len(value) == 1:
+                value = value.pop()
+
         if value:
-            if key_type == 'timestamp':
-                value = timeutils.parse_isotime(value)
-                value = value.replace(tzinfo=None)
             allowed_params[key] = value
 
     return allowed_params

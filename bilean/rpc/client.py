@@ -54,25 +54,30 @@ class EngineClient(object):
             client = self._client
         return client.cast(ctxt, method, **kwargs)
 
-    def user_list(self, ctxt):
-        return self.call(ctxt, self.make_msg('user_list'))
+    def user_list(self, ctxt, show_deleted=False, limit=None,
+                  marker=None, sort_keys=None, sort_dir=None,
+                  filters=None):
+        return self.call(ctxt,
+                         self.make_msg('user_list',
+                                       show_deleted=show_deleted,
+                                       limit=limit, marker=marker,
+                                       sort_keys=sort_keys, sort_dir=sort_dir,
+                                       filters=filters))
 
     def user_get(self, ctxt, user_id):
         return self.call(ctxt, self.make_msg('user_get',
                                              user_id=user_id))
 
-    def user_create(self, ctxt, user_id, balance=0, credit=0,
-                    status='init'):
-        values = {'id': user_id,
-                  'balance': balance,
-                  'credit': credit,
-                  'status': status}
-        return self.call(ctxt, self.make_msg('user_create', values=values))
+    def user_create(self, ctxt, user_id, balance=None, credit=None,
+                    status=None):
+        return self.call(ctxt, self.make_msg('user_create', user_id=user_id,
+                                             balance=balance, credit=credit,
+                                             status=status))
 
-    def user_update(self, ctxt, user_id, values):
-        return self.call(ctxt, self.make_msg('user_update',
+    def user_recharge(self, ctxt, user_id, value):
+        return self.call(ctxt, self.make_msg('user_recharge',
                                              user_id=user_id,
-                                             values=values))
+                                             value=value))
 
     def user_delete(self, ctxt, user_id):
         return self.call(ctxt, self.make_msg('user_delete',

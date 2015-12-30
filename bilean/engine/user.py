@@ -143,6 +143,17 @@ class User(object):
 
         return [cls._from_db_record(record) for record in records]
 
+    @classmethod
+    def delete(cls, context, user_id=None, user=None):
+        '''Delete a user from database.'''
+        if user is not None:
+            db_api.user_delete(context, user_id=user.id)
+            return True
+        elif user_id is not None:
+            db_api.user_delete(context, user_id=user_id)
+            return True
+        return False
+
     def to_dict(self):
         user_dict = {
             'id': self.id,

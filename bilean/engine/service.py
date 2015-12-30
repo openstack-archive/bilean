@@ -23,6 +23,7 @@ from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common.i18n import _LE
 from bilean.common.i18n import _LI
+from bilean.common import utils
 from bilean.common import messaging as rpc_messaging
 from bilean.common import schema
 from bilean.engine import clients as bilean_clients
@@ -109,15 +110,34 @@ class EngineService(service.Service):
         super(EngineService, self).stop()
 
     @bilean_context.request_context
-    def user_list(self, cnxt, detail=False):
-        return user_mod.User.load_all(cnxt)
+    def user_list(self, cnxt, show_deleted=False, limit=None,
+                  marker=None, sort_keys=None, sort_dir=None,
+                  filters=None):
+        limit = utils.parse_int_param('limit', limit)
+        show_deleted = utils.parse_bool_param('show_deleted', show_deleted)
 
-    @bilean_context.request_context
-    def user_create(self, user):
-        return NotImplemented
+        users = user_mod.User.load_all(cnxt, show_deleted=show_deleted,
+                                       limit=limit, marker=marker,
+                                       sort_keys=sort_keys, sort_dir=sort_dir,
+                                       filters=filters)
+
+        return [user.to_dict() for user in users]
+
+    def user_create(self, cnxt, user_id, balance=None, credit=None,
+                    status=None):
+        """Create a new user from notification."""
+        user = user_mod.User(user_id, balance=balance, credit=credit,
+                             status=status)
+        user.store(cnxt)
+
+        return user.to_dict()
 
     @bilean_context.request_context
     def user_get(self, cnxt, user_id):
+        """Show detailed info about a specify user.
+
+        Realtime balance would be return.
+        """
         user = user_mod.User.load(cnxt, user_id=user_id, realtime=True)
         return user.to_dict()
 
@@ -131,8 +151,10 @@ class EngineService(service.Service):
         self.scheduler.update_user_job(user)
         return user.to_dict()
 
-    def user_delete(self, user_id):
-        return NotImplemented
+    def user_delete(self, cnxt, user_id):
+        """Delete a specify user according to the notification."""
+        LOG.info(_LI('Deleging user: %s'), user_id)
+        user = user_mod.User.delete(cnxt, user_id=user_id)
 
     @bilean_context.request_context
     def rule_create(self, cnxt, name, spec, metadata):
@@ -162,7 +184,7 @@ class EngineService(service.Service):
     @bilean_context.request_context
     def rule_list(self, cnxt):
         rules = rule_base.Rule.load_all(cnxt)
-        return {'users': [rule.to_dict() for rule in rules]}
+        return [rule.to_dict() for rule in rules]
 
     @bilean_context.request_context
     def rule_show(self, cnxt, rule_id):
@@ -241,7 +263,7 @@ class EngineService(service.Service):
                                                    sort_keys=sort_keys,
                                                    sort_dir=sort_dir,
                                                    tenant_safe=tenant_safe)
-        return {'resources': [r.to_dict() for r in resources]}
+        return [r.to_dict() for r in resources]
 
     @bilean_context.request_context
     def resource_get(self, cnxt, resource_id):
@@ -286,4 +308,4 @@ class EngineService(service.Service):
                                           sort_dir=sort_dir,
                                           filters=filters,
                                           tenant_safe=tenant_safe)
-        return {'events': [e.to_dict() for e in events]}
+        return [e.to_dict() for e in events]
