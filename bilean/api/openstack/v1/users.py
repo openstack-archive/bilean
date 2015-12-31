@@ -11,8 +11,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import itertools
-
 from webob import exc
 
 from bilean.api.openstack.v1 import util
@@ -92,6 +90,12 @@ class UserController(object):
         if value is None:
             raise exc.HTTPBadRequest(_("Malformed request data, missing "
                                        "'value' key in request body."))
+
+        try:
+            validator.validate_float(value, 'recharge_value',
+                                     consts.MIN_VALUE, consts.MAX_VALUE)
+        except exception.InvalidInput as e:
+            raise exc.HTTPBadRequest(explanation=e.format_message())
 
         user = self.rpc_client.user_recharge(req.context, user_id, value)
         return {'user': user}

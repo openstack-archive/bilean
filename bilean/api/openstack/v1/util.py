@@ -16,8 +16,6 @@ import six
 
 from webob import exc
 
-from oslo_utils import timeutils
-
 
 def policy_enforce(handler):
     """Decorator that enforces policies.

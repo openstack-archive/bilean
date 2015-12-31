@@ -23,9 +23,9 @@ from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common.i18n import _LE
 from bilean.common.i18n import _LI
-from bilean.common import utils
 from bilean.common import messaging as rpc_messaging
 from bilean.common import schema
+from bilean.common import utils
 from bilean.engine import clients as bilean_clients
 from bilean.engine import environment
 from bilean.engine import event as event_mod
@@ -154,7 +154,7 @@ class EngineService(service.Service):
     def user_delete(self, cnxt, user_id):
         """Delete a specify user according to the notification."""
         LOG.info(_LI('Deleging user: %s'), user_id)
-        user = user_mod.User.delete(cnxt, user_id=user_id)
+        user_mod.User.delete(cnxt, user_id=user_id)
 
     @bilean_context.request_context
     def rule_create(self, cnxt, name, spec, metadata):
