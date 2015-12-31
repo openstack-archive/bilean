@@ -83,8 +83,14 @@ class EngineClient(object):
         return self.call(ctxt, self.make_msg('user_delete',
                                              user_id=user_id))
 
-    def rule_list(self, ctxt):
-        return self.call(ctxt, self.make_msg('rule_list'))
+    def rule_list(self, ctxt, limit=None, marker=None, sort_keys=None,
+                  sort_dir=None, filters=None, show_deleted=False):
+        return self.call(ctxt, self.make_msg('rule_list', limit=limit,
+                                             marker=marker,
+                                             sort_keys=sort_keys,
+                                             sort_dir=sort_dir,
+                                             filters=filters,
+                                             show_deleted=show_deleted))
 
     def rule_get(self, ctxt, rule_id):
         return self.call(ctxt, self.make_msg('rule_get',

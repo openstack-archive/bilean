@@ -182,12 +182,24 @@ class EngineService(service.Service):
         return rule.to_dict()
 
     @bilean_context.request_context
-    def rule_list(self, cnxt):
-        rules = rule_base.Rule.load_all(cnxt)
+    def rule_list(self, cnxt, limit=None, marker=None, sort_keys=None,
+                  sort_dir=None, filters=None, show_deleted=False):
+        if limit is not None:
+            limit = utils.parse_int_param('limit', limit)
+        if show_deleted is not None:
+            show_deleted = utils.parse_bool_param('show_deleted',
+                                                  show_deleted)
+        rules = rule_base.Rule.load_all(cnxt, limit=limit,
+                                        marker=marker,
+                                        sort_keys=sort_keys,
+                                        sort_dir=sort_dir,
+                                        filters=filters,
+                                        show_deleted=show_deleted)
+
         return [rule.to_dict() for rule in rules]
 
     @bilean_context.request_context
-    def rule_show(self, cnxt, rule_id):
+    def rule_get(self, cnxt, rule_id):
         rule = rule_base.Rule.load(cnxt, rule_id=rule_id)
         return rule.to_dict()
 
@@ -197,7 +209,8 @@ class EngineService(service.Service):
 
     @bilean_context.request_context
     def rule_delete(self, cnxt, rule_id):
-        return NotImplemented
+        LOG.info(_LI("Deleting rule: '%s'."), rule_id)
+        rule_base.Rule.delete(cnxt, rule_id)
 
     @bilean_context.request_context
     def validate_creation(self, cnxt, resources):

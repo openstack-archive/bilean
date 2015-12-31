@@ -18,6 +18,7 @@ from bilean.api import validator
 from bilean.common import consts
 from bilean.common.i18n import _
 from bilean.common import serializers
+from bilean.common import utils
 from bilean.common import wsgi
 from bilean.rpc import client as rpc_client
 
@@ -54,22 +55,47 @@ class RuleController(object):
         self.options = options
         self.rpc_client = rpc_client.EngineClient()
 
-    def default(self, req, **args):
-        raise exc.HTTPNotFound()
-
     @util.policy_enforce
     def index(self, req):
-        """Lists summary information for all rules"""
+        """List summary information for all rules"""
+        filter_whitelist = {
+            'name': 'mixed',
+            'type': 'mixed',
+            'metadata': 'mixed',
+        }
+        param_whitelist = {
+            'limit': 'single',
+            'marker': 'single',
+            'sort_dir': 'single',
+            'sort_keys': 'multi',
+            'show_deleted': 'single',
+        }
+        params = util.get_allowed_params(req.params, param_whitelist)
+        filters = util.get_allowed_params(req.params, filter_whitelist)
 
-        rule_list = self.rpc_client.list_rules(req.context)
+        key = consts.PARAM_LIMIT
+        if key in params:
+            params[key] = utils.parse_int_param(key, params[key])
 
-        return dict(rules=rule_list)
+        key = consts.PARAM_SHOW_DELETED
+        if key in params:
+            params[key] = utils.parse_bool_param(key, params[key])
+
+        if not filters:
+            filters = None
+
+        rules = self.rpc_client.rule_list(req.context, filters=filters,
+                                          **params)
+
+        return {'rules': rules}
 
     @util.policy_enforce
-    def show(self, req, rule_id):
-        """Gets detailed information for a rule"""
+    def get(self, req, rule_id):
+        """Get detailed information for a rule"""
+        rule = self.rpc_client.rule_get(req.context,
+                                        rule_id)
 
-        return self.rpc_client.show_rule(req.context, rule_id)
+        return {'rule': rule}
 
     @util.policy_enforce
     def create(self, req, body):
@@ -79,22 +105,16 @@ class RuleController(object):
 
         rule_data = body.get('rule')
         data = RuleData(rule_data)
-        result = self.rpc_client.rule_create(req.context,
-                                             data.name(),
-                                             data.spec(),
-                                             data.metadata())
-        return {'rule': result}
+        rule = self.rpc_client.rule_create(req.context,
+                                           data.name(),
+                                           data.spec(),
+                                           data.metadata())
+        return {'rule': rule}
 
     @util.policy_enforce
     def delete(self, req, rule_id):
         """Delete a rule with given rule_id"""
-
-        res = self.rpc_client.delete_rule(req.context, rule_id)
-
-        if res is not None:
-            raise exc.HTTPBadRequest(res['Error'])
-
-        raise exc.HTTPNoContent()
+        self.rpc_client.delete_rule(req.context, rule_id)
 
 
 def create_resource(options):
