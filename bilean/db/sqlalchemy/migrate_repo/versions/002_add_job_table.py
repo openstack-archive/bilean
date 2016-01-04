@@ -32,7 +32,7 @@ def upgrade(migrate_engine):
                           nullable=False),
         sqlalchemy.Column('job_type', sqlalchemy.String(10),
                           nullable=False),
-        sqlalchemy.Column('parameters', types.Dict()),
+        sqlalchemy.Column('parameters', types.Dict),
         sqlalchemy.Column('created_at', sqlalchemy.DateTime),
         sqlalchemy.Column('updated_at', sqlalchemy.DateTime),
         mysql_engine='InnoDB',

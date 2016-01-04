@@ -47,8 +47,22 @@ def upgrade(migrate_engine):
                           nullable=False),
         sqlalchemy.Column('name', sqlalchemy.String(255)),
         sqlalchemy.Column('type', sqlalchemy.String(255)),
-        sqlalchemy.Column('spec', types.Dict()),
-        sqlalchemy.Column('meta_data', types.Dict()),
+        sqlalchemy.Column('spec', types.Dict),
+        sqlalchemy.Column('meta_data', types.Dict),
+        sqlalchemy.Column('created_at', sqlalchemy.DateTime),
+        sqlalchemy.Column('updated_at', sqlalchemy.DateTime),
+        sqlalchemy.Column('deleted_at', sqlalchemy.DateTime),
+        mysql_engine='InnoDB',
+        mysql_charset='utf8'
+    )
+
+    policy = sqlalchemy.Table(
+        'policy', meta,
+        sqlalchemy.Column('id', sqlalchemy.String(36), primary_key=True,
+                          nullable=False),
+        sqlalchemy.Column('rules', types.List),
+        sqlalchemy.Column('is_default', sqlalchemy.Boolean),
+        sqlalchemy.Column('meta_data', types.Dict),
         sqlalchemy.Column('created_at', sqlalchemy.DateTime),
         sqlalchemy.Column('updated_at', sqlalchemy.DateTime),
         sqlalchemy.Column('deleted_at', sqlalchemy.DateTime),
@@ -94,6 +108,7 @@ def upgrade(migrate_engine):
     )
 
     tables = (
+        policy,
         user,
         rule,
         resource,

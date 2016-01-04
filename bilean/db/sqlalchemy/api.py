@@ -191,7 +191,7 @@ def user_get_all(context, show_deleted=False, limit=None,
     return _paginate_query(context, query, models.User,
                            limit=limit, marker=marker,
                            sort_keys=keys, sort_dir=sort_dir,
-                           default_sort_keys=['created_at']).all()
+                           default_sort_keys=['id']).all()
 
 
 def rule_get(context, rule_id, show_deleted=False):
