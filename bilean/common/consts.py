@@ -72,3 +72,11 @@ EVENT_KEYS = (
     'id', 'user_id', 'action', 'timestamp',
     'resource_type', 'value', 'deleted_at',
 )
+
+POLICY_KEYS = (
+    POLICY_ID, POLICY_IS_DEFAULT, POLICY_RULES, POLICY_METADATA,
+    POLICY_CREATED_AT, POLICY_UPDATED_AT, POLICY_DELETED_AT,
+) = (
+    'id', 'is_default', 'rules', 'metadata',
+    'created_at', 'updated_at', 'deleted_at',
+)

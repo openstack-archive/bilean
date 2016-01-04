@@ -423,3 +423,69 @@ def job_delete(context, job_id):
     session = Session.object_session(job)
     session.delete(job)
     session.flush()
+
+
+def policy_get(context, policy_id, show_deleted=False):
+    query = model_query(context, models.Policy)
+    policy = query.get(policy_id)
+
+    deleted_ok = show_deleted or context.show_deleted
+    if policy is None or policy.deleted_at is not None and not deleted_ok:
+        return None
+
+    return policy
+
+
+def policy_get_all(context, limit=None, marker=None,
+                   sort_keys=None, sort_dir=None,
+                   filters=None, show_deleted=False):
+    query = soft_delete_aware_query(context, models.Policy,
+                                    show_deleted=show_deleted)
+
+    if filters is None:
+        filters = {}
+
+    sort_key_map = {
+        consts.POLICY_CREATED_AT: models.Policy.created_at.key,
+        consts.POLICY_UPDATED_AT: models.Policy.updated_at.key,
+    }
+    keys = _get_sort_keys(sort_keys, sort_key_map)
+
+    query = db_filters.exact_filter(query, models.Policy, filters)
+    return _paginate_query(context, query, models.Policy,
+                           limit=limit, marker=marker,
+                           sort_keys=keys, sort_dir=sort_dir,
+                           default_sort_keys=['id']).all()
+
+
+def policy_create(context, values):
+    policy_ref = models.Policy()
+    policy_ref.update(values)
+    policy_ref.save(_session(context))
+    return policy_ref
+
+
+def policy_update(context, policy_id, values):
+    policy = policy_get(context, policy_id)
+
+    if not policy:
+        raise exception.NotFound(_('Attempt to update a policy with id: '
+                                 '%(id)s %(msg)s') % {
+                                     'id': policy_id,
+                                     'msg': 'that does not exist'})
+
+    policy.update(values)
+    policy.save(_session(context))
+
+
+def policy_delete(context, policy_id):
+    policy = policy_get(context, policy_id)
+
+    if not policy:
+        raise exception.NotFound(_('Attempt to delete a policy with id: '
+                                 '%(id)s %(msg)s') % {
+                                     'id': policy_id,
+                                     'msg': 'that does not exist'})
+    session = Session.object_session(policy)
+    policy.soft_delete(session=session)
+    session.flush()

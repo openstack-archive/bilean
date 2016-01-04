@@ -155,3 +155,26 @@ def job_get_all(context, engine_id=None):
 
 def job_delete(context, job_id):
     return IMPL.job_delete(context, job_id)
+
+
+def policy_get(context, policy_id, show_deleted=False):
+    return IMPL.policy_get(context, policy_id, show_deleted=False)
+
+
+def policy_get_all(context, limit=None, marker=None, sort_keys=None,
+                   sort_dir=None, filters=None, show_deleted=False):
+    return IMPL.policy_get_all(context, limit=limit, marker=marker,
+                               sort_keys=sort_keys, sort_dir=sort_dir,
+                               filters=filters, show_deleted=show_deleted)
+
+
+def policy_create(context, values):
+    return IMPL.policy_create(context, values)
+
+
+def policy_update(context, policy_id, values):
+    return IMPL.policy_update(context, policy_id, values)
+
+
+def policy_delete(context, policy_id):
+    return IMPL.policy_delete(context, policy_id)
