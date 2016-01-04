@@ -75,7 +75,7 @@ class ResourceController(object):
         return {'resources': resources}
 
     @util.policy_enforce
-    def show(self, req, resource_id):
+    def get(self, req, resource_id):
         """Gets detailed information for a resource"""
 
         resource = self.rpc_client.resource_get(req.context, resource_id)

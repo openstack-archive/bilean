@@ -34,21 +34,21 @@ class API(wsgi.Router):
                               path_prefix=users_path) as user_mapper:
 
             # User collection
-            user_mapper.connect("users_index",
+            user_mapper.connect("user_index",
                                 "",
                                 action="index",
                                 conditions={'method': 'GET'})
 
             # User detail
-            user_mapper.connect("user_show",
+            user_mapper.connect("user_get",
                                 "/{user_id}",
-                                action="show",
+                                action="get",
                                 conditions={'method': 'GET'})
 
             # Update user
-            user_mapper.connect("user_update",
+            user_mapper.connect("user_recharge",
                                 "/{user_id}",
-                                action="update",
+                                action="recharge",
                                 conditions={'method': 'PUT'})
 
         # Resources
@@ -64,9 +64,9 @@ class API(wsgi.Router):
                                conditions={'method': 'GET'})
 
             # Resource detail
-            res_mapper.connect("resource_show",
+            res_mapper.connect("resource_get",
                                "/{resource_id}",
-                               action="show",
+                               action="get",
                                conditions={'method': 'GET'})
 
             # Validate creation
@@ -82,15 +82,15 @@ class API(wsgi.Router):
                               path_prefix=rule_path) as rule_mapper:
 
             # Rule collection
-            rule_mapper.connect("rules_index",
+            rule_mapper.connect("rule_index",
                                 "",
                                 action="index",
                                 conditions={'method': 'GET'})
 
             # Rule detail
-            rule_mapper.connect("rule_show",
+            rule_mapper.connect("rule_get",
                                 "/{rule_id}",
-                                action="show",
+                                action="get",
                                 conditions={'method': 'GET'})
 
             # Create rule
@@ -118,7 +118,7 @@ class API(wsgi.Router):
                               path_prefix=event_path) as event_mapper:
 
             # Event collection
-            event_mapper.connect("events_index",
+            event_mapper.connect("event_index",
                                  "",
                                  action="index",
                                  conditions={'method': 'GET'})
