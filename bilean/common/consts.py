@@ -11,8 +11,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-MIN_VALUE = "1"
-MAX_VALUE = "100000000"
+MIN_VALUE = 1
+MAX_VALUE = 100000000
+
+MIN_RESOURCE_NUM = 1
+MAX_RESOURCE_NUM = 1000
 
 RPC_ATTRs = (
     ENGINE_TOPIC,

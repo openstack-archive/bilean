@@ -11,15 +11,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import itertools
-
 from webob import exc
 
 from bilean.api.openstack.v1 import util
 from bilean.api import validator
+from bilean.common import consts
 from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common import serializers
+from bilean.common import utils
 from bilean.common import wsgi
 from bilean.rpc import client as rpc_client
 
@@ -28,24 +28,11 @@ from oslo_log import log as logging
 LOG = logging.getLogger(__name__)
 
 
-def format_resource(req, res, keys=None):
-    keys = keys or []
-    include_key = lambda k: k in keys if keys else True
-
-    def transform(key, value):
-        if not include_key(key):
-            return
-        else:
-            yield (key, value)
-
-    return dict(itertools.chain.from_iterable(
-        transform(k, v) for k, v in res.items()))
-
-
 class ResourceController(object):
     """WSGI controller for Resources in Bilean v1 API
 
-    Implements the API actions
+    Implements the API actions, cause action 'create' and 'delete' is
+    triggered by notification, it's not necessary to provide here.
     """
     # Define request scope (must match what is in policy.json)
     REQUEST_SCOPE = 'resources'
@@ -55,19 +42,45 @@ class ResourceController(object):
         self.rpc_client = rpc_client.EngineClient()
 
     @util.policy_enforce
-    def index(self, req, tenant_id):
+    def index(self, req):
         """Lists summary information for all resources"""
-        resource_list = self.rpc_client.list_resources(req.context)
+        filter_whitelist = {
+            'resource_type': 'mixed',
+            'rule_id': 'mixed',
+        }
+        param_whitelist = {
+            'user_id': 'single',
+            'limit': 'single',
+            'marker': 'single',
+            'sort_dir': 'single',
+            'sort_keys': 'multi',
+            'show_deleted': 'single',
+        }
+        params = util.get_allowed_params(req.params, param_whitelist)
+        filters = util.get_allowed_params(req.params, filter_whitelist)
 
-        return dict(resources=resource_list)
+        key = consts.PARAM_LIMIT
+        if key in params:
+            params[key] = utils.parse_int_param(key, params[key])
+
+        key = consts.PARAM_SHOW_DELETED
+        if key in params:
+            params[key] = utils.parse_bool_param(key, params[key])
+
+        if not filters:
+            filters = None
+        resources = self.rpc_client.resource_list(req.context, filters=filters,
+                                                  **params)
+
+        return {'resources': resources}
 
     @util.policy_enforce
     def show(self, req, resource_id):
         """Gets detailed information for a resource"""
 
-        resource = self.rpc_client.show_resource(req.context, resource_id)
+        resource = self.rpc_client.resource_get(req.context, resource_id)
 
-        return {'resource': format_resource(req, resource)}
+        return {'resource': resource}
 
     @util.policy_enforce
     def validate_creation(self, req, body):
@@ -80,16 +93,18 @@ class ResourceController(object):
         """
         if not validator.is_valid_body(body):
             raise exc.HTTPUnprocessableEntity()
-        if not body.get('resources'):
+
+        resources = body.get('resources', None)
+        if not resources:
             msg = _("Resources is empty")
             raise exc.HTTPBadRequest(explanation=msg)
-        if body.get('count'):
+        if body.get('count', None):
             try:
-                validator.validate_integer(
-                    body.get('count'), 'count', 0, 1000)
+                validator.validate_integer(body.get('count'), 'count',
+                                           consts.MIN_RESOURCE_NUM,
+                                           consts.MAX_RESOURCE_NUM)
             except exception.InvalidInput as e:
                 raise exc.HTTPBadRequest(explanation=e.format_message())
-        resources = body.get('resources')
         try:
             for resource in resources:
                 validator.validate_resource(resource)
@@ -97,10 +112,8 @@ class ResourceController(object):
             raise exc.HTTPBadRequest(explanation=e.format_message())
         except Exception as e:
             raise exc.HTTPBadRequest(explanation=e)
-        try:
-            return self.rpc_client.validate_creation(req.context, body)
-        except Exception as e:
-            LOG.error(e)
+
+        return self.rpc_client.validate_creation(req.context, body)
 
 
 def create_resource(options):

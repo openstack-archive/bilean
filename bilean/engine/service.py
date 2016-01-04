@@ -267,15 +267,21 @@ class EngineService(service.Service):
         return resource.to_dict()
 
     @bilean_context.request_context
-    def resource_list(self, cnxt, show_deleted=False, limit=None,
-                      marker=None, sort_keys=None, sort_dir=None,
-                      filters=None, tenant_safe=True):
-        resources = resource_mod.Resource.load_all(cnxt, filters=filters,
-                                                   show_deleted=show_deleted,
+    def resource_list(self, cnxt, user_id=None, limit=None, marker=None,
+                      sort_keys=None, sort_dir=None, filters=None,
+                      tenant_safe=True, show_deleted=False):
+        if limit is not None:
+            limit = utils.parse_int_param('limit', limit)
+        if show_deleted is not None:
+            show_deleted = utils.parse_bool_param('show_deleted',
+                                                  show_deleted)
+        resources = resource_mod.Resource.load_all(cnxt, user_id=user_id,
                                                    limit=limit, marker=marker,
                                                    sort_keys=sort_keys,
                                                    sort_dir=sort_dir,
-                                                   tenant_safe=tenant_safe)
+                                                   filters=filters,
+                                                   tenant_safe=tenant_safe,
+                                                   show_deleted=show_deleted)
         return [r.to_dict() for r in resources]
 
     @bilean_context.request_context

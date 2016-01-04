@@ -108,8 +108,16 @@ class EngineClient(object):
         return self.call(ctxt, self.make_msg('rule_delete',
                                              rule_id=rule_id))
 
-    def resource_list(self, ctxt):
-        return self.call(ctxt, self.make_msg('resource_list'))
+    def resource_list(self, ctxt, user_id=None, limit=None, marker=None,
+                      sort_keys=None, sort_dir=None, filters=None,
+                      tenant_safe=True, show_deleted=False):
+        return self.call(ctxt, self.make_msg('resource_list', user_id=user_id,
+                                             limit=limit, marker=marker,
+                                             sort_keys=sort_keys,
+                                             sort_dir=sort_dir,
+                                             filters=filters,
+                                             tenant_safe=tenant_safe,
+                                             show_deleted=show_deleted))
 
     def resource_get(self, ctxt, resource_id):
         return self.call(ctxt, self.make_msg('resource_get',
