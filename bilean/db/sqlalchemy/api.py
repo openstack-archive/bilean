@@ -446,6 +446,7 @@ def policy_get_all(context, limit=None, marker=None,
         filters = {}
 
     sort_key_map = {
+        consts.POLICY_NAME: models.Policy.name.key,
         consts.POLICY_CREATED_AT: models.Policy.created_at.key,
         consts.POLICY_UPDATED_AT: models.Policy.updated_at.key,
     }

@@ -157,7 +157,12 @@ class EngineService(service.Service):
         user_mod.User.delete(cnxt, user_id=user_id)
 
     @bilean_context.request_context
-    def rule_create(self, cnxt, name, spec, metadata):
+    def rule_create(self, cnxt, name, spec, metadata=None):
+        if len(rule_base.Rule.load_all(cnxt, filters={'name': name})) > 0:
+            msg = _("The rule (%(name)s) already exists."
+                    ) % {"name": name}
+            raise exception.BileanBadRequest(msg=msg)
+
         type_name, version = schema.get_spec_version(spec)
         try:
             plugin = environment.global_env().get_rule(type_name)
@@ -339,3 +344,108 @@ class EngineService(service.Service):
                                           tenant_safe=tenant_safe,
                                           show_deleted=show_deleted)
         return [e.to_dict() for e in events]
+
+    @bilean_context.request_context
+    def policy_create(self, cnxt, name, rule_ids=None, metadata=None):
+        """Create a new policy."""
+        if len(policy_mod.Policy.load_all(cnxt, filters={'name': name})) > 0:
+            msg = _("The policy (%(name)s) already exists."
+                    ) % {"name": name}
+            raise exception.BileanBadRequest(msg=msg)
+
+        rules = []
+        if rule_ids is not None:
+            type_cache = []
+            for rule_id in rule_ids:
+                try:
+                    rule = rule_base.Rule.load(cnxt, rule_id=rule_id)
+                    if rule.type not in type_cache:
+                        rules.append({'id': rule_id, 'type': rule.type})
+                        type_cache.append(rule.type)
+                    else:
+                        msg = _("More than one rule in type: '%s', it's "
+                                "not allowed.") % rule.type
+                        raise exception.BileanBadRequest(msg=msg)
+                except exception.RuleNotFound as ex:
+                    raise exception.BileanBadRequest(msg=six.text_type(ex))
+
+        kwargs = {
+            'rules': rules,
+            'metadata': metadata,
+        }
+        policy = policy_mod.Policy(name, **kwargs)
+        policy.store(cnxt)
+        LOG.info(_LI("Policy is created: %(id)s."), policy.id)
+        return policy.to_dict()
+
+    @bilean_context.request_context
+    def policy_list(self, cnxt, limit=None, marker=None, sort_keys=None,
+                    sort_dir=None, filters=None, show_deleted=False):
+        if limit is not None:
+            limit = utils.parse_int_param('limit', limit)
+        if show_deleted is not None:
+            show_deleted = utils.parse_bool_param('show_deleted',
+                                                  show_deleted)
+        policies = policy_mod.Policy.load_all(cnxt, limit=limit,
+                                              marker=marker,
+                                              sort_keys=sort_keys,
+                                              sort_dir=sort_dir,
+                                              filters=filters,
+                                              show_deleted=show_deleted)
+
+        return [policy.to_dict() for policy in policies]
+
+    @bilean_context.request_context
+    def policy_get(self, cnxt, policy_id):
+        policy = policy_mod.Policy.load(cnxt, policy_id=policy_id)
+        return policy.to_dict()
+
+    @bilean_context.request_context
+    def policy_update(self, cnxt, policy_id, name=None, metadata=None,
+                      is_default=None):
+        LOG.info(_LI("Updating policy: '%(id)s'"), {'id': policy_id})
+
+        policy = policy_mod.Policy.load(cnxt, policy_id=policy_id)
+        changed = False
+        if name is not None and name != policy.name:
+            policies = policy_mod.Policy.load_all(cnxt, filters={'name': name})
+            if len(policies) > 0:
+                msg = _("The policy (%(name)s) already exists."
+                        ) % {"name": name}
+                raise exception.BileanBadRequest(msg=msg)
+            policy.name = name
+            changed = True
+        if metadata is not None and metadata != policy.metadata:
+            policy.metadata = metadata
+            changed = True
+        if is_default is not None and is_default != policy.is_default:
+            is_default = utils.parse_bool_param('is_default', is_default)
+            if is_default:
+                # Set policy to default should unset old default policy.
+                policies = policy_mod.load_all(cnxt,
+                                               filters={'is_default': True})
+                if len(policies) == 1:
+                    default_policy = policies[0]
+                    default_policy.is_default = False
+                    default_policy.store(cnxt)
+            policy.is_default = is_default
+            changed = True
+
+        if changed:
+            policy.store(cnxt)
+
+        LOG.info(_LI("Policy '%(id)s' is updated."), {'id': policy_id})
+        return policy.to_dict()
+
+    @bilean_context.request_context
+    def policy_add_rule(self, cnxt, policy_id, rule_ids):
+        return NotImplemented
+
+    @bilean_context.request_context
+    def policy_remove_rule(self, cnxt, policy_id, rule_ids):
+        return NotImplemented
+
+    @bilean_context.request_context
+    def policy_delete(self, cnxt, policy_id):
+        LOG.info(_LI("Deleting policy: '%s'."), policy_id)
+        policy_mod.Policy.delete(cnxt, policy_id)

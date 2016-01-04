@@ -74,9 +74,9 @@ EVENT_KEYS = (
 )
 
 POLICY_KEYS = (
-    POLICY_ID, POLICY_IS_DEFAULT, POLICY_RULES, POLICY_METADATA,
+    POLICY_ID, POLICY_NAME, POLICY_IS_DEFAULT, POLICY_RULES, POLICY_METADATA,
     POLICY_CREATED_AT, POLICY_UPDATED_AT, POLICY_DELETED_AT,
 ) = (
-    'id', 'is_default', 'rules', 'metadata',
+    'id', 'name', 'is_default', 'rules', 'metadata',
     'created_at', 'updated_at', 'deleted_at',
 )

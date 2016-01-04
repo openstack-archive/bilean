@@ -20,24 +20,27 @@ from bilean.rules import base as rule_base
 class Policy(object):
     """Policy object contains all policy operations"""
 
-    def __init__(self, **kwargs):
+    def __init__(self, name, **kwargs):
+        self.name = name
+
         self.id = kwargs.get('id', None)
         self.is_default = kwargs.get('is_default', False)
         # rules schema like [{'id': 'xxx', 'type': 'os.nova.server'}]
         self.rules = kwargs.get('rules', [])
-        self.meta_data = kwargs.get('meta_data', None)
+        self.metadata = kwargs.get('metadata', None)
 
         self.created_at = kwargs.get('created_at', None)
         self.updated_at = kwargs.get('updated_at', None)
         self.deleted_at = kwargs.get('deleted_at', None)
 
-    def store(self, context, values):
+    def store(self, context):
         """Store the policy record into database table."""
 
         values = {
+            'name': self.name,
             'rules': self.rules,
             'is_default': self.is_default,
-            'meta_data': self.meta_data,
+            'meta_data': self.metadata,
             'created_at': self.created_at,
             'updated_at': self.updated_at,
             'deleted_at': self.deleted_at,
@@ -61,39 +64,37 @@ class Policy(object):
             'id': record.id,
             'rules': record.rules,
             'is_default': record.is_default,
-            'meta_data': record.meta_data,
+            'metadata': record.meta_data,
             'created_at': record.created_at,
             'updated_at': record.updated_at,
             'deleted_at': record.deleted_at,
         }
 
-        return cls(**kwargs)
+        return cls(record.name, **kwargs)
 
     @classmethod
-    def load(cls, context, policy_id=None, policy=None, show_deleted=False,
-             tenant_safe=True):
+    def load(cls, context, policy_id=None, policy=None, show_deleted=False):
         '''Retrieve a policy from database.'''
         if policy is None:
             policy = db_api.policy_get(context, policy_id,
-                                       show_deleted=show_deleted,
-                                       tenant_safe=tenant_safe)
+                                       show_deleted=show_deleted)
             if policy is None:
                 raise exception.PolicyNotFound(policy=policy_id)
 
         return cls._from_db_record(policy)
 
     @classmethod
-    def load_all(cls, context, show_deleted=False, limit=None,
-                 marker=None, sort_keys=None, sort_dir=None,
-                 filters=None, tenant_safe=True):
+    def load_all(cls, context, limit=None, marker=None,
+                 sort_keys=None, sort_dir=None,
+                 filters=None, show_deleted=False):
         '''Retrieve all policies of from database.'''
 
-        records = db_api.policy_get_all(context, show_deleted=show_deleted,
+        records = db_api.policy_get_all(context,
                                         limit=limit, marker=marker,
                                         sort_keys=sort_keys,
                                         sort_dir=sort_dir,
                                         filters=filters,
-                                        tenant_safe=tenant_safe)
+                                        show_deleted=show_deleted)
 
         return [cls._from_db_record(record) for record in records]
 
@@ -109,9 +110,10 @@ class Policy(object):
     def to_dict(self):
         policy_dict = {
             'id': self.id,
+            'name': self.name,
             'rules': self.rules,
             'is_default': self.is_default,
-            'meta_data': self.meta_data,
+            'metadata': self.metadata,
             'created_at': utils.format_time(self.created_at),
             'updated_at': utils.format_time(self.updated_at),
             'deleted_at': utils.format_time(self.deleted_at),

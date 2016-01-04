@@ -122,6 +122,7 @@ class Policy(BASE, BileanBase, SoftDelete, models.TimestampMixin):
 
     id = sqlalchemy.Column(sqlalchemy.String(36), primary_key=True,
                            default=lambda: str(uuid.uuid4()))
+    name = sqlalchemy.Column(sqlalchemy.String(255))
     rules = sqlalchemy.Column(types.List)
     is_default = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
     meta_data = sqlalchemy.Column(types.Dict)

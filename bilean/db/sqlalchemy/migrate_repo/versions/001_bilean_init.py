@@ -60,6 +60,7 @@ def upgrade(migrate_engine):
         'policy', meta,
         sqlalchemy.Column('id', sqlalchemy.String(36), primary_key=True,
                           nullable=False),
+        sqlalchemy.Column('name', sqlalchemy.String(255)),
         sqlalchemy.Column('rules', types.List),
         sqlalchemy.Column('is_default', sqlalchemy.Boolean),
         sqlalchemy.Column('meta_data', types.Dict),

@@ -154,3 +154,34 @@ class EngineClient(object):
     def validate_creation(self, cnxt, resources):
         return self.call(cnxt, self.make_msg('validate_creation',
                                              resources=resources))
+
+    def policy_list(self, ctxt, limit=None, marker=None, sort_keys=None,
+                    sort_dir=None, filters=None, show_deleted=False):
+        return self.call(ctxt, self.make_msg('policy_list', limit=limit,
+                                             marker=marker,
+                                             sort_keys=sort_keys,
+                                             sort_dir=sort_dir,
+                                             filters=filters,
+                                             show_deleted=show_deleted))
+
+    def policy_get(self, ctxt, policy_id):
+        return self.call(ctxt, self.make_msg('policy_get',
+                                             policy_id=policy_id))
+
+    def policy_create(self, ctxt, name, rules=None, metadata=None):
+        return self.call(ctxt, self.make_msg('policy_create',
+                                             name=name,
+                                             rule_ids=rules,
+                                             metadata=metadata))
+
+    def policy_update(self, ctxt, policy_id, name=None, metadata=None,
+                      is_default=None):
+        return self.call(ctxt, self.make_msg('policy_update',
+                                             policy_id=policy_id,
+                                             name=name,
+                                             metadata=metadata,
+                                             is_default=is_default))
+
+    def policy_delete(self, ctxt, policy_id):
+        return self.call(ctxt, self.make_msg('policy_delete',
+                                             policy_id=policy_id))
