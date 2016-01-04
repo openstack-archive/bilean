@@ -11,27 +11,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import itertools
-
 from bilean.api.openstack.v1 import util
 from bilean.common import consts
 from bilean.common import serializers
+from bilean.common import utils
 from bilean.common import wsgi
 from bilean.rpc import client as rpc_client
-
-
-def format_event(req, res, keys=None):
-    keys = keys or []
-    include_key = lambda k: k in keys if keys else True
-
-    def transform(key, value):
-        if not include_key(key):
-            return
-        else:
-            yield (key, value)
-
-    return dict(itertools.chain.from_iterable(
-        transform(k, v) for k, v in res.items()))
 
 
 class EventController(object):
@@ -48,36 +33,38 @@ class EventController(object):
 
     @util.policy_enforce
     def index(self, req, tenant_id):
-        """Lists summary information for all users"""
-        filter_fields = {
-            'user_id': 'string',
-            'resource_type': 'string',
-            'action': 'string',
-            'start': 'timestamp',
-            'end': 'timestamp',
+        """Lists summary information for all events"""
+        filter_whitelist = {
+            'resource_type': 'mixed',
+            'action': 'single',
         }
-        filter_params = util.get_allowed_params(req.params, filter_fields)
-        if 'aggregate' in req.params:
-            aggregate = req.params.get('aggregate')
-            if aggregate in ['sum', 'avg']:
-                filter_params['aggregate'] = aggregate
-                events = self.rpc_client.list_events(
-                    req.context, filters=filter_params)
-                event_statistics = self._init_event_statistics()
-                for e in events:
-                    if e[0] in event_statistics:
-                        event_statistics[e[0]] = e[1]
-                return dict(events=event_statistics)
+        param_whitelist = {
+            'user_id': 'single',
+            'start_time': 'single',
+            'end_time': 'single',
+            'limit': 'single',
+            'marker': 'single',
+            'sort_dir': 'single',
+            'sort_keys': 'multi',
+            'show_deleted': 'single',
+        }
+        params = util.get_allowed_params(req.params, param_whitelist)
+        filters = util.get_allowed_params(req.params, filter_whitelist)
 
-        events = self.rpc_client.list_events(
-            req.context, filters=filter_params)
-        return dict(events=events)
+        key = consts.PARAM_LIMIT
+        if key in params:
+            params[key] = utils.parse_int_param(key, params[key])
 
-    def _init_event_statistics(self):
-        event_statistics = {}
-        for resource in consts.RESOURCE_TYPES:
-            event_statistics[resource] = 0
-        return event_statistics
+        key = consts.PARAM_SHOW_DELETED
+        if key in params:
+            params[key] = utils.parse_bool_param(key, params[key])
+
+        if not filters:
+            filters = None
+
+        events = self.rpc_client.event_list(req.context, filters=filters,
+                                            **params)
+        return {'events': events}
 
 
 def create_resource(options):

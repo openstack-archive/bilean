@@ -62,19 +62,19 @@ class Event(object):
         return cls.from_db_record(record)
 
     @classmethod
-    def load_all(cls, context, user_id=None, show_deleted=False,
-                 filters=None, limit=None, marker=None, sort_keys=None,
-                 sort_dir=None, tenant_safe=True, start_time=None,
-                 end_time=None):
+    def load_all(cls, context, user_id=None, limit=None, marker=None,
+                 sort_keys=None, sort_dir=None, filters=None,
+                 start_time=None, end_time=None, tenant_safe=True,
+                 show_deleted=False,):
         '''Retrieve all events from database.'''
 
         records = db_api.event_get_all(context, user_id=user_id, limit=limit,
-                                       show_deleted=show_deleted,
                                        marker=marker, filters=filters,
                                        sort_keys=sort_keys, sort_dir=sort_dir,
-                                       tenant_safe=tenant_safe,
                                        start_time=start_time,
-                                       end_time=end_time)
+                                       end_time=end_time,
+                                       tenant_safe=tenant_safe,
+                                       show_deleted=show_deleted)
 
         for record in records:
             yield cls.from_db_record(record)

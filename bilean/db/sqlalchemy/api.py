@@ -355,10 +355,10 @@ def event_get(context, event_id, tenant_safe=True):
     return event
 
 
-def event_get_all(context, user_id=None, show_deleted=False,
-                  filters=None, limit=None, marker=None, sort_keys=None,
-                  sort_dir=None, tenant_safe=True, start_time=None,
-                  end_time=None):
+def event_get_all(context, user_id=None, limit=None, marker=None,
+                  sort_keys=None, sort_dir=None, filters=None,
+                  start_time=None, end_time=None, tenant_safe=True,
+                  show_deleted=False):
     query = soft_delete_aware_query(context, models.Event,
                                     show_deleted=show_deleted)
 

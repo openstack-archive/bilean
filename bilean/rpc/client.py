@@ -137,8 +137,19 @@ class EngineClient(object):
         return self.call(ctxt, self.make_msg('resource_delete',
                                              resource=resource))
 
-    def event_list(self, ctxt, filters=None):
-        return self.call(ctxt, self.make_msg('event_list', **filters))
+    def event_list(self, ctxt, user_id=None, limit=None, marker=None,
+                   sort_keys=None, sort_dir=None, filters=None,
+                   start_time=None, end_time=None, tenant_safe=True,
+                   show_deleted=False):
+        return self.call(ctxt, self.make_msg('event_list', user_id=user_id,
+                                             limit=limit, marker=marker,
+                                             sort_keys=sort_keys,
+                                             sort_dir=sort_dir,
+                                             filters=filters,
+                                             start_time=start_time,
+                                             end_time=end_time,
+                                             tenant_safe=tenant_safe,
+                                             show_deleted=show_deleted))
 
     def validate_creation(self, cnxt, resources):
         return self.call(cnxt, self.make_msg('validate_creation',

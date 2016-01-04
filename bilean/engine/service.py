@@ -319,12 +319,23 @@ class EngineService(service.Service):
             return
 
     @bilean_context.request_context
-    def event_list(self, cnxt, filters=None, limit=None, marker=None,
-                   sort_keys=None, sort_dir=None, tenant_safe=True):
-        events = event_mod.Event.load_all(cnxt, limit=limit,
-                                          marker=marker,
+    def event_list(self, cnxt, user_id=None, limit=None, marker=None,
+                   sort_keys=None, sort_dir=None, filters=None,
+                   start_time=None, end_time=None, tenant_safe=True,
+                   show_deleted=False):
+        if limit is not None:
+            limit = utils.parse_int_param('limit', limit)
+        if show_deleted is not None:
+            show_deleted = utils.parse_bool_param('show_deleted',
+                                                  show_deleted)
+
+        events = event_mod.Event.load_all(cnxt, user_id=user_id,
+                                          limit=limit, marker=marker,
                                           sort_keys=sort_keys,
                                           sort_dir=sort_dir,
                                           filters=filters,
-                                          tenant_safe=tenant_safe)
+                                          start_time=start_time,
+                                          end_time=end_time,
+                                          tenant_safe=tenant_safe,
+                                          show_deleted=show_deleted)
         return [e.to_dict() for e in events]
