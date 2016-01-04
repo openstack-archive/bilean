@@ -58,7 +58,6 @@ class PolicyController(object):
         """List summary information for all policies"""
         filter_whitelist = {
             'name': 'mixed',
-            'type': 'mixed',
             'metadata': 'mixed',
         }
         param_whitelist = {
@@ -83,7 +82,7 @@ class PolicyController(object):
             filters = None
 
         policies = self.rpc_client.policy_list(req.context, filters=filters,
-                                          **params)
+                                               **params)
 
         return {'policies': policies}
 
@@ -91,7 +90,7 @@ class PolicyController(object):
     def get(self, req, policy_id):
         """Get detailed information for a policy"""
         policy = self.rpc_client.policy_get(req.context,
-                                        policy_id)
+                                            policy_id)
 
         return {'policy': policy}
 
@@ -101,18 +100,41 @@ class PolicyController(object):
         if not validator.is_valid_body(body):
             raise exc.HTTPUnprocessableEntity()
 
-        policy_data = body.get('policy')
+        policy_data = body.get('policy', None)
+        if profile_data is None:
+            raise exc.HTTPBadRequest(_("Malformed request data, missing "
+                                       "'policy' key in request body."))
+
         data = PolicyData(policy_data)
         policy = self.rpc_client.policy_create(req.context,
-                                           data.name(),
-                                           data.spec(),
-                                           data.metadata())
+                                               data.name(),
+                                               data.rules(),
+                                               data.metadata())
         return {'policy': policy}
 
     @util.policy_enforce
+    def update(self, req, policy_id, body):
+        if not validator.is_valid_body(body):
+            raise exc.HTTPUnprocessableEntity()
+
+        policy_data = body.get('policy', None)
+        if profile_data is None:
+            raise exc.HTTPBadRequest(_("Malformed request data, missing "
+                                       "'policy' key in request body."))
+
+        name = policy_data.get(consts.POLICY_NAME, None)
+        metadata = policy_data.get(consts.POLICY_METADATA, None)
+        is_default = policy_data.get(consts.POLICY_IS_DEFAULT, None)
+
+        policy = self.rpc_client.policy_update(req.context, policy_id, name,
+                                               metadata, is_default)
+        return {'policy': policy}
+
+        
+    @util.policy_enforce
     def delete(self, req, policy_id):
         """Delete a policy with given policy_id"""
-        self.rpc_client.delete_policy(req.context, policy_id)
+        self.rpc_client.policy_delete(req.context, policy_id)
 
 
 def create_resource(options):

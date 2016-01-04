@@ -103,7 +103,11 @@ class RuleController(object):
         if not validator.is_valid_body(body):
             raise exc.HTTPUnprocessableEntity()
 
-        rule_data = body.get('rule')
+        rule_data = body.get('rule', None)
+        if rule_data is None:
+            raise exc.HTTPBadRequest(_("Malformed request data, missing "
+                                       "'rule' key in request body."))
+
         data = RuleData(rule_data)
         rule = self.rpc_client.rule_create(req.context,
                                            data.name(),
@@ -114,7 +118,7 @@ class RuleController(object):
     @util.policy_enforce
     def delete(self, req, rule_id):
         """Delete a rule with given rule_id"""
-        self.rpc_client.delete_rule(req.context, rule_id)
+        self.rpc_client.rule_delete(req.context, rule_id)
 
 
 def create_resource(options):

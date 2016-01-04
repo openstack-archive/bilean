@@ -111,6 +111,42 @@ class API(wsgi.Router):
                                 action="delete",
                                 conditions={'method': 'DELETE'})
 
+        # Policies
+        policy_resource = policies.create_resource(conf)
+        policy_path = "/{tenant_id}/policies"
+        with mapper.submapper(controller=policy_resource,
+                              path_prefix=policy_path) as policy_mapper:
+
+            # Policy collection
+            policy_mapper.connect("policy_index",
+                                  "",
+                                  action="index",
+                                  conditions={'method': 'GET'})
+
+            # Policy detail
+            policy_mapper.connect("policy_get",
+                                  "/{policy_id}",
+                                  action="get",
+                                  conditions={'method': 'GET'})
+
+            # Create policy
+            policy_mapper.connect("policy_create",
+                                  "",
+                                  action="create",
+                                  conditions={'method': 'POST'})
+
+            # Update policy
+            policy_mapper.connect("policy_update",
+                                  "/{policy_id}",
+                                  action="update",
+                                  conditions={'method': 'PUT'})
+
+            # Delete policy
+            policy_mapper.connect("policy_delete",
+                                  "/{policy_id}",
+                                  action="delete",
+                                  conditions={'method': 'DELETE'})
+
         # Events
         event_resource = events.create_resource(conf)
         event_path = "/{tenant_id}/events"
