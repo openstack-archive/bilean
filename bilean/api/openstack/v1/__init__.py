@@ -14,6 +14,7 @@
 import routes
 
 from bilean.api.openstack.v1 import events
+from bilean.api.openstack.v1 import policies
 from bilean.api.openstack.v1 import resources
 from bilean.api.openstack.v1 import rules
 from bilean.api.openstack.v1 import users

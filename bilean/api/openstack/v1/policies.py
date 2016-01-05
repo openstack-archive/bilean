@@ -101,7 +101,7 @@ class PolicyController(object):
             raise exc.HTTPUnprocessableEntity()
 
         policy_data = body.get('policy', None)
-        if profile_data is None:
+        if policy_data is None:
             raise exc.HTTPBadRequest(_("Malformed request data, missing "
                                        "'policy' key in request body."))
 
@@ -118,7 +118,7 @@ class PolicyController(object):
             raise exc.HTTPUnprocessableEntity()
 
         policy_data = body.get('policy', None)
-        if profile_data is None:
+        if policy_data is None:
             raise exc.HTTPBadRequest(_("Malformed request data, missing "
                                        "'policy' key in request body."))
 
@@ -130,7 +130,6 @@ class PolicyController(object):
                                                metadata, is_default)
         return {'policy': policy}
 
-        
     @util.policy_enforce
     def delete(self, req, policy_id):
         """Delete a policy with given policy_id"""
