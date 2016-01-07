@@ -5,6 +5,7 @@
 .DS_Store
 .coverage
 .tox
+.testrepository
 AUTHORS
 ChangeLog
 bilean.egg-info/

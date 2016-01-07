@@ -1,4 +1,4 @@
-To generate the sample senlin.conf file, run the following
-command from the top level of the senlin directory:
+To generate the sample bilean.conf file, run the following
+command from the top level of the bilean directory:
 
 tox -egenconfig

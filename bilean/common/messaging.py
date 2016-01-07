@@ -55,7 +55,7 @@ class JsonPayloadSerializer(oslo_messaging.NoOpSerializer):
 
 def setup(url=None, optional=False):
     """Initialise the oslo_messaging layer."""
-    global TRANSPORT, TRANSPORTS, NOTIFIER
+    global TRANSPORT, NOTIFIER
 
     if url and url.startswith("fake://"):
         # NOTE(sileht): oslo_messaging fake driver uses time.sleep
@@ -78,7 +78,6 @@ def setup(url=None, optional=False):
     if not NOTIFIER and TRANSPORT:
         serializer = RequestContextSerializer(JsonPayloadSerializer())
         NOTIFIER = oslo_messaging.Notifier(TRANSPORT, serializer=serializer)
-    TRANSPORTS[url] = TRANSPORT
 
 
 def cleanup():
