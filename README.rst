@@ -23,3 +23,10 @@ Blueprints
 Bug Tracking
 ------------
 - Bugs: https://bugs.launchpad.net/bilean
+
+IRC
+---
+IRC Channel: #openstack-bilean on `Freenode`_.
+
+
+.. _Freenode: http://freenode.net/
