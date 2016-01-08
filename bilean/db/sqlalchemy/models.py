@@ -14,12 +14,13 @@
 SQLAlchemy models for Bilean data.
 """
 
-import uuid
+import six
 
 from bilean.db.sqlalchemy import types
 
 from oslo_db.sqlalchemy import models
 from oslo_utils import timeutils
+from oslo_utils import uuidutils
 
 import sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
@@ -28,6 +29,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.session import Session
 
 BASE = declarative_base()
+UUID4 = uuidutils.generate_uuid
 
 
 def get_session():
@@ -70,7 +72,7 @@ class BileanBase(models.ModelBase):
             if not session:
                 session = get_session()
         session.begin()
-        for k, v in values.iteritems():
+        for k, v in six.iteritems(values):
             setattr(self, k, v)
         session.commit()
 
@@ -121,7 +123,7 @@ class Policy(BASE, BileanBase, SoftDelete, models.TimestampMixin):
     __tablename__ = 'policy'
 
     id = sqlalchemy.Column(sqlalchemy.String(36), primary_key=True,
-                           default=lambda: str(uuid.uuid4()))
+                           default=lambda: UUID4())
     name = sqlalchemy.Column(sqlalchemy.String(255))
     rules = sqlalchemy.Column(types.List)
     is_default = sqlalchemy.Column(sqlalchemy.Boolean, default=False)
@@ -133,7 +135,7 @@ class Rule(BASE, BileanBase, SoftDelete, models.TimestampMixin):
 
     __tablename__ = 'rule'
     id = sqlalchemy.Column(sqlalchemy.String(36), primary_key=True,
-                           default=lambda: str(uuid.uuid4()))
+                           default=lambda: UUID4())
     name = sqlalchemy.Column(sqlalchemy.String(255))
     type = sqlalchemy.Column(sqlalchemy.String(255))
     spec = sqlalchemy.Column(types.Dict)
@@ -145,7 +147,7 @@ class Resource(BASE, BileanBase, SoftDelete, models.TimestampMixin):
 
     __tablename__ = 'resource'
     id = sqlalchemy.Column(sqlalchemy.String(36), primary_key=True,
-                           default=lambda: str(uuid.uuid4()))
+                           default=lambda: UUID4())
     user_id = sqlalchemy.Column(
         sqlalchemy.String(36),
         sqlalchemy.ForeignKey('user.id'),
@@ -166,8 +168,7 @@ class Event(BASE, BileanBase, SoftDelete):
     __tablename__ = 'event'
 
     id = sqlalchemy.Column(sqlalchemy.String(36), primary_key=True,
-                           default=lambda: str(uuid.uuid4()),
-                           unique=True)
+                           default=lambda: UUID4(), unique=True)
     user_id = sqlalchemy.Column(sqlalchemy.String(36),
                                 sqlalchemy.ForeignKey('user.id'),
                                 nullable=False)

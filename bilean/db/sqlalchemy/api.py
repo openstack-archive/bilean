@@ -24,7 +24,6 @@ from sqlalchemy.orm.session import Session
 
 from bilean.common import consts
 from bilean.common import exception
-from bilean.common.i18n import _
 from bilean.db.sqlalchemy import filters as db_filters
 from bilean.db.sqlalchemy import migration
 from bilean.db.sqlalchemy import models
@@ -133,14 +132,12 @@ def user_get(context, user_id, show_deleted=False, tenant_safe=True):
 def user_update(context, user_id, values):
     user = user_get(context, user_id)
 
-    if not user:
-        raise exception.NotFound(_('Attempt to update a user with id: '
-                                 '%(id)s %(msg)s') % {
-                                     'id': user_id,
-                                     'msg': 'that does not exist'})
+    if user is None:
+        raise exception.UserNotFound(user=user_id)
 
     user.update(values)
     user.save(_session(context))
+    return user
 
 
 def user_create(context, values):
@@ -153,11 +150,9 @@ def user_create(context, values):
 def user_delete(context, user_id):
     session = _session(context)
     user = user_get(context, user_id)
-    if not user:
-        raise exception.NotFound(_('Attempt to delete a user with id: '
-                                 '%(id)s %(msg)s') % {
-                                     'id': user_id,
-                                     'msg': 'that does not exist'})
+    if user is None:
+        return
+
     # Delete all related resource records
     for resource in user.resources:
         session.delete(resource)
@@ -196,7 +191,7 @@ def user_get_all(context, show_deleted=False, limit=None,
 
 def rule_get(context, rule_id, show_deleted=False):
     query = model_query(context, models.Rule)
-    rule = query.get(rule_id)
+    rule = query.filter_by(id=rule_id).first()
 
     deleted_ok = show_deleted or context.show_deleted
     if rule is None or rule.deleted_at is not None and not deleted_ok:
@@ -239,11 +234,8 @@ def rule_create(context, values):
 def rule_update(context, rule_id, values):
     rule = rule_get(context, rule_id)
 
-    if not rule:
-        raise exception.NotFound(_('Attempt to update a rule with id: '
-                                 '%(id)s %(msg)s') % {
-                                     'id': rule_id,
-                                     'msg': 'that does not exist'})
+    if rule is None:
+        raise exception.RuleNotFound(rule=rule_id)
 
     rule.update(values)
     rule.save(_session(context))
@@ -252,11 +244,9 @@ def rule_update(context, rule_id, values):
 def rule_delete(context, rule_id):
     rule = rule_get(context, rule_id)
 
-    if not rule:
-        raise exception.NotFound(_('Attempt to delete a rule with id: '
-                                 '%(id)s %(msg)s') % {
-                                     'id': rule_id,
-                                     'msg': 'that does not exist'})
+    if rule is None:
+        return
+
     session = Session.object_session(rule)
     rule.soft_delete(session=session)
     session.flush()
@@ -315,11 +305,8 @@ def resource_create(context, values):
 def resource_update(context, resource_id, values):
     resource = resource_get(context, resource_id)
 
-    if not resource:
-        raise exception.NotFound(_('Attempt to update a resource with id: '
-                                 '%(id)s %(msg)s') % {
-                                     'id': resource_id,
-                                     'msg': 'that does not exist'})
+    if resource is None:
+        raise exception.ResourceNotFound(resource=resource_id)
 
     resource.update(values)
     resource.save(_session(context))
@@ -329,11 +316,9 @@ def resource_update(context, resource_id, values):
 def resource_delete(context, resource_id, soft_delete=True):
     resource = resource_get(context, resource_id)
 
-    if not resource:
-        raise exception.NotFound(_('Attempt to delete a resource with id: '
-                                 '%(id)s %(msg)s') % {
-                                     'id': resource_id,
-                                     'msg': 'that does not exist'})
+    if resource is None:
+        return
+
     session = Session.object_session(resource)
     if soft_delete:
         resource.soft_delete(session=session)
@@ -416,10 +401,8 @@ def job_delete(context, job_id):
     job = model_query(context, models.Job).get(job_id)
 
     if job is None:
-        raise exception.NotFound(_('Attempt to delete a job with id: '
-                                 '%(id)s %(msg)s') % {
-                                     'id': job_id,
-                                     'msg': 'that does not exist'})
+        return
+
     session = Session.object_session(job)
     session.delete(job)
     session.flush()
@@ -469,11 +452,8 @@ def policy_create(context, values):
 def policy_update(context, policy_id, values):
     policy = policy_get(context, policy_id)
 
-    if not policy:
-        raise exception.NotFound(_('Attempt to update a policy with id: '
-                                 '%(id)s %(msg)s') % {
-                                     'id': policy_id,
-                                     'msg': 'that does not exist'})
+    if policy is None:
+        raise exception.PolicyNotFound(policy=policy_id)
 
     policy.update(values)
     policy.save(_session(context))
@@ -482,11 +462,9 @@ def policy_update(context, policy_id, values):
 def policy_delete(context, policy_id):
     policy = policy_get(context, policy_id)
 
-    if not policy:
-        raise exception.NotFound(_('Attempt to delete a policy with id: '
-                                 '%(id)s %(msg)s') % {
-                                     'id': policy_id,
-                                     'msg': 'that does not exist'})
+    if policy is None:
+        return
+
     session = Session.object_session(policy)
     policy.soft_delete(session=session)
     session.flush()

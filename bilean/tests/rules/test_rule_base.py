@@ -11,12 +11,11 @@
 # under the License.
 
 import mock
-from oslo_utils import encodeutils
 import six
 
 from bilean.common import exception
-from bilean.common.i18n import _
 from bilean.common import schema
+from bilean.common import utils as common_utils
 from bilean.db import api as db_api
 from bilean.engine import environment
 from bilean.rules import base as rule_base
@@ -106,3 +105,159 @@ class TestRuleBase(base.BileanTestCase):
         self.assertRaises(exception.RuleTypeNotFound,
                           rule_base.Rule,
                           'test-rule', bad_spec)
+
+    def test_load(self):
+        rule = self._create_db_rule()
+        result = rule_base.Rule.load(self.context, rule.id)
+
+        self.assertEqual(rule.id, result.id)
+        self.assertEqual(rule.name, result.name)
+        self.assertEqual(rule.type, result.type)
+        self.assertEqual(rule.spec, result.spec)
+        self.assertEqual(rule.meta_data, result.metadata)
+        self.assertEqual({'key1': 'value1', 'key2': 2}, result.properties)
+
+        self.assertEqual(rule.created_at, result.created_at)
+        self.assertEqual(rule.updated_at, result.updated_at)
+
+    def test_load_not_found(self):
+        ex = self.assertRaises(exception.RuleNotFound,
+                               rule_base.Rule.load,
+                               self.context, 'fake-rule', None)
+        self.assertEqual('The rule (fake-rule) could not be found.',
+                         six.text_type(ex))
+
+        ex = self.assertRaises(exception.RuleNotFound,
+                               rule_base.Rule.load,
+                               self.context, None, None)
+        self.assertEqual('The rule (None) could not be found.',
+                         six.text_type(ex))
+
+    def test_load_all(self):
+        result = rule_base.Rule.load_all(self.context)
+        self.assertEqual([], list(result))
+
+        rule1 = self._create_db_rule(name='rule-1', id='ID1')
+        rule2 = self._create_db_rule(name='rule-2', id='ID2')
+
+        result = rule_base.Rule.load_all(self.context)
+        rules = list(result)
+        self.assertEqual(2, len(rules))
+        self.assertEqual(rule1.id, rules[0].id)
+        self.assertEqual(rule2.id, rules[1].id)
+
+    @mock.patch.object(db_api, 'rule_get_all')
+    def test_load_all_with_params(self, mock_get_all):
+        mock_get_all.return_value = []
+
+        res = list(rule_base.Rule.load_all(self.context))
+        self.assertEqual([], res)
+        mock_get_all.assert_called_once_with(self.context, limit=None,
+                                             marker=None, sort_keys=None,
+                                             sort_dir=None, filters=None,
+                                             show_deleted=False)
+        mock_get_all.reset_mock()
+
+        res = list(rule_base.Rule.load_all(self.context, limit=1,
+                                           marker='MARKER',
+                                           sort_keys=['K1'],
+                                           sort_dir='asc',
+                                           filters={'name': 'fake-name'}))
+        self.assertEqual([], res)
+        mock_get_all.assert_called_once_with(self.context, limit=1,
+                                             marker='MARKER',
+                                             sort_keys=['K1'],
+                                             sort_dir='asc',
+                                             filters={'name': 'fake-name'},
+                                             show_deleted=False)
+
+    def test_delete(self):
+        rule = self._create_db_rule()
+        rule_id = rule.id
+
+        res = rule_base.Rule.delete(self.context, rule_id)
+        self.assertIsNone(res)
+        self.assertRaises(exception.RuleNotFound,
+                          rule_base.Rule.load,
+                          self.context, rule_id, None)
+
+    def test_delete_not_found(self):
+        result = rule_base.Rule.delete(self.context, 'fake-rule')
+        self.assertIsNone(result)
+
+    def test_store_for_create(self):
+        rule = self._create_rule('test-rule')
+        self.assertIsNone(rule.id)
+
+        rule_id = rule.store(self.context)
+        self.assertIsNotNone(rule_id)
+        self.assertEqual(rule_id, rule.id)
+
+        result = db_api.rule_get(self.context, rule_id)
+
+        self.assertIsNotNone(result)
+        self.assertEqual('test-rule', result.name)
+        self.assertEqual(rule_id, result.id)
+        self.assertEqual(rule.type, result.type)
+        self.assertEqual(rule.spec, result.spec)
+        self.assertEqual(rule.metadata, result.meta_data)
+
+        self.assertIsNotNone(result.created_at)
+        self.assertIsNone(result.updated_at)
+
+    def test_store_for_update(self):
+        rule = self._create_rule('test-rule')
+        self.assertIsNone(rule.id)
+        rule_id = rule.store(self.context)
+        self.assertIsNotNone(rule_id)
+        self.assertEqual(rule_id, rule.id)
+
+        rule.name = 'test-rule-1'
+        rule.metadata = {'key': 'value'}
+
+        new_id = rule.store(self.context)
+        self.assertEqual(rule_id, new_id)
+
+        result = db_api.rule_get(self.context, rule_id)
+        self.assertIsNotNone(result)
+        self.assertEqual('test-rule-1', result.name)
+        self.assertEqual({'key': 'value'}, result.meta_data)
+        self.assertIsNotNone(rule.created_at)
+        self.assertIsNotNone(rule.updated_at)
+
+    def test_to_dict(self):
+        rule = self._create_rule('test-rule')
+        rule_id = rule.store(self.context)
+        self.assertIsNotNone(rule_id)
+        expected = {
+            'id': rule_id,
+            'name': rule.name,
+            'type': rule.type,
+            'spec': rule.spec,
+            'metadata': rule.metadata,
+            'created_at': common_utils.format_time(rule.created_at),
+            'updated_at': None,
+            'deleted_at': None,
+        }
+
+        result = rule_base.Rule.load(self.context, rule_id=rule.id)
+        self.assertEqual(expected, result.to_dict())
+
+    def test_get_schema(self):
+        expected = {
+            'key1': {
+                'default': 'value1',
+                'description': 'First key',
+                'readonly': False,
+                'required': False,
+                'type': 'String'
+            },
+            'key2': {
+                'description': 'Second key',
+                'readonly': False,
+                'required': True,
+                'type': 'Integer'
+            },
+        }
+        res = DummyRule.get_schema()
+        self.assertEqual(expected, res)

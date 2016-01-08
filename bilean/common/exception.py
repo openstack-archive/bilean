@@ -92,57 +92,36 @@ class InvalidParameter(BileanException):
     msg_fmt = _("Invalid value '%(value)s' specified for '%(name)s'")
 
 
-class ClusterNotFound(BileanException):
-    msg_fmt = _("The cluster (%(cluster)s) could not be found.")
-
-
-class NodeNotFound(BileanException):
-    msg_fmt = _("The node (%(node)s) could not be found.")
-
-
 class RuleTypeNotFound(BileanException):
     msg_fmt = _("Rule type (%(rule_type)s) is not found.")
 
 
-class ProfileTypeNotMatch(BileanException):
+class RuleTypeNotMatch(BileanException):
     msg_fmt = _("%(message)s")
 
 
-class ProfileNotFound(BileanException):
-    msg_fmt = _("The profile (%(profile)s) could not be found.")
+class RuleNotFound(BileanException):
+    msg_fmt = _("The rule (%(rule)s) could not be found.")
 
 
-class ProfileNotSpecified(BileanException):
-    msg_fmt = _("Profile not specified.")
+class RuleNotSpecified(BileanException):
+    msg_fmt = _("Rule not specified.")
 
 
-class ProfileOperationFailed(BileanException):
+class RuleOperationFailed(BileanException):
     msg_fmt = _("%(message)s")
 
 
-class ProfileOperationTimeout(BileanException):
+class RuleOperationTimeout(BileanException):
     msg_fmt = _("%(message)s")
-
-
-class PolicyNotSpecified(BileanException):
-    msg_fmt = _("Policy not specified.")
-
-
-class PolicyTypeNotFound(BileanException):
-    msg_fmt = _("Policy type (%(policy_type)s) is not found.")
 
 
 class PolicyNotFound(BileanException):
     msg_fmt = _("The policy (%(policy)s) could not be found.")
 
 
-class PolicyBindingNotFound(BileanException):
-    msg_fmt = _("The policy (%(policy)s) is not found attached to the "
-                "specified cluster (%(identity)s).")
-
-
-class PolicyTypeConflict(BileanException):
-    msg_fmt = _("The policy with type (%(policy_type)s) already exists.")
+class UserNotFound(BileanException):
+    msg_fmt = _("The user (%(user)s) could not be found.")
 
 
 class InvalidSchemaError(BileanException):
@@ -174,23 +153,6 @@ class InvalidContentType(BileanException):
 
 class RequestLimitExceeded(BileanException):
     msg_fmt = _('Request limit exceeded: %(message)s')
-
-
-class WebhookNotFound(BileanException):
-    msg_fmt = _("The webhook (%(webhook)s) could not be found.")
-
-
-class ReceiverNotFound(BileanException):
-    msg_fmt = _("The receiver (%(receiver)s) could not be found.")
-
-
-class ActionNotFound(BileanException):
-    msg_fmt = _("The action (%(action)s) could not be found.")
-
-
-class ActionInProgress(BileanException):
-    msg_fmt = _("Cluster %(cluster_name)s already has an action (%(action)s) "
-                "in progress.")
 
 
 class EventNotFound(BileanException):
@@ -227,23 +189,12 @@ class TrustNotFound(InternalError):
     msg_fmt = _("The trust for trustor (%(trustor)s) could not be found.")
 
 
-class ResourceCreationFailure(InternalError):
-    # Used when creating resources in other services
-    msg_fmt = _("Failed in creating %(rtype)s.")
-
-
-class ResourceUpdateFailure(InternalError):
-    # Used when updating resources from other services
-    msg_fmt = _("Failed in updating %(resource)s.")
-
-
 class ResourceDeletionFailure(InternalError):
     # Used when deleting resources from other services
     msg_fmt = _("Failed in deleting %(resource)s.")
 
 
 class ResourceNotFound(InternalError):
-    # Used when retrieving resources from other services
     msg_fmt = _("The resource (%(resource)s) could not be found.")
 
 
@@ -258,11 +209,6 @@ class InvalidPlugin(InternalError):
 
 class InvalidSpec(InternalError):
     msg_fmt = _("%(message)s")
-
-
-class PolicyNotAttached(InternalError):
-    msg_fmt = _("The policy (%(policy)s) is not attached to the specified "
-                "cluster (%(cluster)s).")
 
 
 class HTTPExceptionDisguise(Exception):

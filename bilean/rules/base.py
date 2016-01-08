@@ -122,15 +122,16 @@ class Rule(object):
         return cls.from_db_record(rule)
 
     @classmethod
-    def load_all(cls, context, show_deleted=False, limit=None,
-                 marker=None, sort_keys=None, sort_dir=None,
-                 filters=None):
+    def load_all(cls, context, limit=None, marker=None, sort_keys=None,
+                 sort_dir=None, filters=None, show_deleted=False):
         '''Retrieve all rules from database.'''
 
-        records = db_api.rule_get_all(context, show_deleted=show_deleted,
-                                      limit=limit, marker=marker,
-                                      sort_keys=sort_keys, sort_dir=sort_dir,
-                                      filters=filters)
+        records = db_api.rule_get_all(context, limit=limit,
+                                      marker=marker,
+                                      sort_keys=sort_keys,
+                                      sort_dir=sort_dir,
+                                      filters=filters,
+                                      show_deleted=show_deleted)
 
         return [cls.from_db_record(record) for record in records]
 
@@ -173,16 +174,6 @@ class Rule(object):
                     for name, schema in cls.properties_schema.items())
 
     def get_price(self, resource):
-        '''For subclass to override.'''
-
-        return NotImplemented
-
-    def do_delete(self, obj):
-        '''For subclass to override.'''
-
-        return NotImplemented
-
-    def do_update(self, obj, new_rule, **params):
         '''For subclass to override.'''
 
         return NotImplemented
