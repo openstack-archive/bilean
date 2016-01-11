@@ -1,4 +1,4 @@
 [gerrit]
-host=dev.kylincloud.me
+host=review.openstack.org
 port=29418
-project=ubuntu-14.04/bilean.git
+project=openstack/bilean.git
