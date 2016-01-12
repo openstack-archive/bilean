@@ -115,6 +115,8 @@ class User(object):
     def load(cls, context, user_id=None, user=None, realtime=False,
              show_deleted=False, tenant_safe=True):
         '''Retrieve a user from database.'''
+        if context.is_admin:
+            tenant_safe = False
         if user is None:
             user = db_api.user_get(context, user_id,
                                    show_deleted=show_deleted,
