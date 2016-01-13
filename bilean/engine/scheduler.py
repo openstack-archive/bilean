@@ -49,7 +49,7 @@ bilean_task_opts = [
     cfg.StrOpt('connection',
                help='The SQLAlchemy connection string used to connect to the '
                     'database')
-    ]
+]
 
 bilean_task_group = cfg.OptGroup('bilean_task')
 cfg.CONF.register_group(bilean_task_group)
