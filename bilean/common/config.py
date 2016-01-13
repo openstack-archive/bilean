@@ -45,7 +45,7 @@ service_opts = [
     cfg.StrOpt('environment_dir',
                default='/etc/bilean/environments',
                help=_('The directory to search for environment files.')),
-    ]
+]
 
 rpc_opts = [
     cfg.StrOpt('host',
@@ -69,7 +69,7 @@ authentication_opts = [
                help=_('Name of the domain for the service user.')),
     cfg.StrOpt('service_project_domain', default='Default',
                help=_('Name of the domain for the service project.')),
-    ]
+]
 
 clients_group = cfg.OptGroup('clients')
 clients_opts = [

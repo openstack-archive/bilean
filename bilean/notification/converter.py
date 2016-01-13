@@ -160,8 +160,8 @@ class EventDefinition(object):
         return False
 
     def match_type(self, event_type):
-        return (self.included_type(event_type)
-                and not self.excluded_type(event_type))
+        return (self.included_type(event_type) and
+                not self.excluded_type(event_type))
 
     @property
     def is_catchall(self):
