@@ -50,7 +50,7 @@ class EventsNotificationEndpoint(object):
         return self.process_resource_notification(notification)
 
     def process_identity_notification(self, notification):
-        """Convert notifcation to user."""
+        """Convert notification to user."""
         user_id = notification['payload'].get('resource_info', None)
         if not user_id:
             LOG.error(_LE("Cannot retrieve user_id from notification: %s"),
@@ -66,7 +66,7 @@ class EventsNotificationEndpoint(object):
         return oslo_messaging.NotificationResult.HANDLED
 
     def process_resource_notification(self, notification):
-        """Convert notifcation to resources."""
+        """Convert notification to resources."""
         resources = self.resource_converter.to_resources(notification)
         if not resources:
             LOG.info('Ignore notification because no matched resources '
