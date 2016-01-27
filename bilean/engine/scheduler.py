@@ -28,7 +28,7 @@ from datetime import timedelta
 import random
 import six
 
-bilean_task_opts = [
+scheduler_opts = [
     cfg.StrOpt('time_zone',
                default='utc',
                help=_('The time zone of job, default is utc')),
@@ -51,9 +51,9 @@ bilean_task_opts = [
                     'database')
 ]
 
-bilean_task_group = cfg.OptGroup('bilean_task')
-cfg.CONF.register_group(bilean_task_group)
-cfg.CONF.register_opts(bilean_task_opts, group=bilean_task_group)
+scheduler_group = cfg.OptGroup('scheduler')
+cfg.CONF.register_group(scheduler_group)
+cfg.CONF.register_opts(scheduler_opts, group=scheduler_group)
 
 LOG = logging.getLogger(__name__)
 
@@ -76,24 +76,26 @@ class BileanScheduler(object):
         self.context = kwargs.get('context', None)
         if not self.context:
             self.context = bilean_context.get_admin_context()
-        if cfg.CONF.bilean_task.store_ap_job:
-            self._scheduler.add_jobstore(cfg.CONF.bilean_task.backend,
-                                         url=cfg.CONF.bilean_task.connection)
+        if cfg.CONF.scheduler.store_ap_job:
+            self._scheduler.add_jobstore(cfg.CONF.scheduler.backend,
+                                         url=cfg.CONF.scheduler.connection)
 
     def init_scheduler(self):
         """Init all jobs related to the engine from db."""
         jobs = db_api.job_get_all(self.context, engine_id=self.engine_id)
         if not jobs:
-            LOG.info(_LI("No job found from db"))
-            return True
+            LOG.info(_LI("No job related to engine '%s'."), self.engine_id)
+            return
         for job in jobs:
-            if self.bilean_scheduler.is_exist(job.id):
+            if self.is_exist(job.id):
                 continue
             task_name = "_%s_task" % (job.job_type)
             task = getattr(self, task_name)
-            self.bilean_task.add_job(task, job.id,
-                                     job_type=job.job_type,
-                                     params=job.parameters)
+            LOG.info(_LI("Add job '%(job_id)s' to engine '%(engine_id)s'."),
+                     {'job_id': job.id, 'engine_id': self.engine_id})
+            tg_type = self.CRON if job.job_type == self.DAILY else self.DAILY
+            self.add_job(task, job.id, trigger_type=tg_type,
+                         params=job.parameters)
 
     def add_job(self, task, job_id, trigger_type='date', **kwargs):
         """Add a job to scheduler by given data.
@@ -102,8 +104,8 @@ class BileanScheduler(object):
         :param datetime alarm_time: when to first run the job
 
         """
-        mg_time = cfg.CONF.bilean_task.misfire_grace_time
-        job_time_zone = cfg.CONF.bilean_task.time_zone
+        mg_time = cfg.CONF.scheduler.misfire_grace_time
+        job_time_zone = cfg.CONF.scheduler.time_zone
         user_id = job_id.split('-')[1]
         if trigger_type == 'date':
             run_date = kwargs.get('run_date')
@@ -116,7 +118,7 @@ class BileanScheduler(object):
                                     args=[user_id],
                                     id=job_id,
                                     misfire_grace_time=mg_time)
-            return True
+            return
 
         # Add a cron type job
         hour = kwargs.get('hour', None)
@@ -130,7 +132,6 @@ class BileanScheduler(object):
                                 args=[user_id],
                                 id=job_id,
                                 misfire_grace_time=mg_time)
-        return True
 
     def modify_job(self, job_id, **changes):
         """Modifies the properties of a single job.
@@ -205,7 +206,7 @@ class BileanScheduler(object):
         if not user.rate:
             return False
         total_seconds = user['balance'] / user['rate']
-        prior_notify_time = cfg.CONF.bilean_task.prior_notify_time * 3600
+        prior_notify_time = cfg.CONF.scheduler.prior_notify_time * 3600
         notify_seconds = total_seconds - prior_notify_time
         notify_seconds = notify_seconds if notify_seconds > 0 else 0
         run_date = timeutils.utcnow() + timedelta(seconds=notify_seconds)
@@ -295,4 +296,4 @@ class BileanScheduler(object):
 
 
 def list_opts():
-    yield bilean_task_group.name, bilean_task_opts
+    yield scheduler_group.name, scheduler_opts

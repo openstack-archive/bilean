@@ -205,7 +205,7 @@ class User(object):
             if new_rate == 0 and self.balance > 0:
                 self.status = self.FREE
             elif self.status == self.WARNING:
-                p_time = cfg.CONF.bilean_task.prior_notify_time * 3600
+                p_time = cfg.CONF.scheduler.prior_notify_time * 3600
                 rest_usage = p_time * new_rate
                 if self.balance > rest_usage:
                     self.status = self.ACTIVE
@@ -223,7 +223,7 @@ class User(object):
                        "of recharge.")
             self.set_status(self.ACTIVE, reason=reason)
         elif self.status == self.WARNING:
-            prior_notify_time = cfg.CONF.bilean_task.prior_notify_time * 3600
+            prior_notify_time = cfg.CONF.scheduler.prior_notify_time * 3600
             rest_usage = prior_notify_time * self.rate
             if self.balance > rest_usage:
                 reason = _("Status change from warning to active because "
