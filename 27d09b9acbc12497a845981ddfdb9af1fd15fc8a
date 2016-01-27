@@ -1,0 +1,8 @@
+Code-Review+2: Li Yingjun <yingjun.li@kylin-cloud.com>
+Workflow+1: lvdongbing <dongbing.lv@kylin-cloud.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Wed, 27 Jan 2016 08:52:16 +0000
+Reviewed-on: https://review.openstack.org/266739
+Project: openstack/bilean
+Branch: refs/heads/master
