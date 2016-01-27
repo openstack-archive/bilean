@@ -123,7 +123,7 @@ def user_get(context, user_id, show_deleted=False, tenant_safe=True):
     if user is None or user.deleted_at is not None and not deleted_ok:
         return None
 
-    if tenant_safe and context.tenant_id != user.user_id:
+    if tenant_safe and context.tenant_id != user.id:
         return None
 
     return user
