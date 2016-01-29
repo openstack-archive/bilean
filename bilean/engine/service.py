@@ -12,7 +12,7 @@
 #    under the License.
 
 import six
-import uuid
+import socket
 
 from oslo_log import log as logging
 import oslo_messaging
@@ -67,9 +67,9 @@ class EngineService(service.Service):
             self.context = bilean_context.get_service_context()
 
     def start(self):
-        self.engine_id = str(uuid.uuid4())
+        self.engine_id = socket.gethostname()
 
-        LOG.info(_LI("initialise bilean users from keystone."))
+        LOG.info(_LI("Initialise bilean users from keystone."))
         user_mod.User.init_users(self.context)
 
         self.scheduler = scheduler.BileanScheduler(engine_id=self.engine_id,
