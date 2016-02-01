@@ -98,7 +98,7 @@ class NovaClientPlugin(client_plugin.ClientPlugin):
         try:
             server.get()
         except exceptions.OverLimit as exc:
-            LOG.warn(_LW("Server %(name)s (%(id)s) received an OverLimit "
+            LOG.warning(_LW("Server %(name)s (%(id)s) received an OverLimit "
                          "response during server.get(): %(exception)s"),
                      {'name': server.name,
                       'id': server.id,
@@ -106,7 +106,7 @@ class NovaClientPlugin(client_plugin.ClientPlugin):
         except exceptions.ClientException as exc:
             if ((getattr(exc, 'http_status', getattr(exc, 'code', None)) in
                  (500, 503))):
-                LOG.warn(_LW('Server "%(name)s" (%(id)s) received the '
+                LOG.warning(_LW('Server "%(name)s" (%(id)s) received the '
                              'following exception during server.get(): '
                              '%(exception)s'),
                          {'name': server.name,
@@ -272,7 +272,7 @@ class NovaClientPlugin(client_plugin.ClientPlugin):
         try:
             server = self.client().servers.get(server)
         except exceptions.NotFound as ex:
-            LOG.warn(_LW('Instance (%(server)s) not found: %(ex)s'),
+            LOG.warning(_LW('Instance (%(server)s) not found: %(ex)s'),
                      {'server': server, 'ex': ex})
         else:
             for n in server.networks:
@@ -283,7 +283,7 @@ class NovaClientPlugin(client_plugin.ClientPlugin):
         try:
             return self.client().servers.get(server)
         except exceptions.NotFound as ex:
-            LOG.warn(_LW('Server (%(server)s) not found: %(ex)s'),
+            LOG.warning(_LW('Server (%(server)s) not found: %(ex)s'),
                      {'server': server, 'ex': ex})
             raise exception.ServerNotFound(server=server)
 

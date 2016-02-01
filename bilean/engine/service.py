@@ -320,7 +320,7 @@ class EngineService(service.Service):
         try:
             res.do_delete(self.context)
         except Exception as ex:
-            LOG.warn(_("Delete resource error %s"), ex)
+            LOG.warning(_("Delete resource error %s"), ex)
             return
 
     @bilean_context.request_context

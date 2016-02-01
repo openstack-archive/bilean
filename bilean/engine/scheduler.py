@@ -179,7 +179,7 @@ class BileanScheduler(object):
             db_api.job_delete(
                 self.context, self._generate_job_id(user.id, 'notify'))
         except exception.NotFound as e:
-            LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
+            LOG.warning(_("Failed in deleting job: %s") % six.text_type(e))
         self._add_freeze_job(user)
 
     def _daily_task(self, user_id):
@@ -190,7 +190,7 @@ class BileanScheduler(object):
             db_api.job_delete(
                 self.context, self._generate_job_id(user.id, 'daily'))
         except exception.NotFound as e:
-            LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
+            LOG.warning(_("Failed in deleting job: %s") % six.text_type(e))
 
     def _freeze_task(self, user_id):
         user = user_mod.User.load(self.context, user_id=user_id)
@@ -200,7 +200,7 @@ class BileanScheduler(object):
             db_api.job_delete(
                 self.context, self._generate_job_id(user.id, 'freeze'))
         except exception.NotFound as e:
-            LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
+            LOG.warning(_("Failed in deleting job: %s") % six.text_type(e))
 
     def _add_notify_job(self, user):
         if not user.rate:
@@ -258,7 +258,7 @@ class BileanScheduler(object):
             try:
                 db_api.job_delete(self.context, job_id)
             except exception.NotFound as e:
-                LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
+                LOG.warning(_("Failed in deleting job: %s") % six.text_type(e))
 
     def update_user_job(self, user):
         """Update user's billing job"""
@@ -273,7 +273,7 @@ class BileanScheduler(object):
             try:
                 db_api.job_delete(self.context, job_id)
             except exception.NotFound as e:
-                LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
+                LOG.warning(_("Failed in deleting job: %s") % six.text_type(e))
 
         daily_job_id = self._generate_job_id(user.id, self.DAILY)
         if not self.is_exist(daily_job_id):
