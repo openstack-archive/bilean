@@ -27,7 +27,6 @@ from bilean.common.i18n import _LI
 from bilean.common import messaging as rpc_messaging
 from bilean.common import schema
 from bilean.common import utils
-from bilean.engine import clients as bilean_clients
 from bilean.engine import environment
 from bilean.engine import event as event_mod
 from bilean.engine import policy as policy_mod
@@ -74,8 +73,6 @@ class EngineService(service.Service):
         self.engine_id = None
         self.target = None
         self._rpc_server = None
-
-        bilean_clients.initialise()
 
         if context is None:
             self.context = bilean_context.get_admin_context()

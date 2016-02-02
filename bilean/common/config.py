@@ -76,23 +76,6 @@ authentication_opts = [
                help=_('Name of the domain for the service project.')),
 ]
 
-clients_group = cfg.OptGroup('clients')
-clients_opts = [
-    cfg.StrOpt('endpoint_type',
-               help=_(
-                   'Type of endpoint in Identity service catalog to use '
-                   'for communication with the OpenStack service.')),
-    cfg.StrOpt('ca_file',
-               help=_('Optional CA cert file to use in SSL connections.')),
-    cfg.StrOpt('cert_file',
-               help=_('Optional PEM-formatted certificate chain file.')),
-    cfg.StrOpt('key_file',
-               help=_('Optional PEM-formatted file that contains the '
-                      'private key.')),
-    cfg.BoolOpt('insecure',
-                help=_("If set, then the server's certificate will not "
-                       "be verified."))]
-
 client_http_log_debug_opts = [
     cfg.BoolOpt('http_log_debug',
                 default=False,
@@ -113,13 +96,11 @@ def list_opts():
     yield paste_deploy_group.name, paste_deploy_opts
     yield authentication_group.name, authentication_opts
     yield revision_group.name, revision_opts
-    yield clients_group.name, clients_opts
 
 
 cfg.CONF.register_group(paste_deploy_group)
 cfg.CONF.register_group(authentication_group)
 cfg.CONF.register_group(revision_group)
-cfg.CONF.register_group(clients_group)
 
 for group, opts in list_opts():
     cfg.CONF.register_opts(opts, group=group)
