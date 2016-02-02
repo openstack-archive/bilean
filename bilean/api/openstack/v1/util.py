@@ -29,8 +29,6 @@ def policy_enforce(handler):
     """
     @functools.wraps(handler)
     def handle_bilean_method(controller, req, tenant_id, **kwargs):
-        import pdb
-        pdb.set_trace()
         if req.context.project != tenant_id:
             raise exc.HTTPForbidden()
 
