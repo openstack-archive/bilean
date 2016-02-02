@@ -55,6 +55,11 @@ rpc_opts = [
                       'It is not necessarily a hostname, FQDN, '
                       'or IP address.'))]
 
+cloud_backend_opts = [
+    cfg.StrOpt('cloud_backend',
+               default='openstack',
+               help=_('Default cloud backend to use.'))]
+
 authentication_group = cfg.OptGroup('authentication')
 authentication_opts = [
     cfg.StrOpt('auth_url', default='',
@@ -104,6 +109,7 @@ revision_opts = [
 def list_opts():
     yield None, rpc_opts
     yield None, service_opts
+    yield None, cloud_backend_opts
     yield paste_deploy_group.name, paste_deploy_opts
     yield authentication_group.name, authentication_opts
     yield revision_group.name, revision_opts

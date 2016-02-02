@@ -11,10 +11,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import six
+
 from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common import utils
 from bilean.db import api as db_api
+from bilean.drivers import base as driver_base
 from bilean.engine import event as event_mod
 from bilean.engine import resource as resource_mod
 
@@ -77,15 +80,20 @@ class User(object):
     @classmethod
     def init_users(cls, context):
         """Init users from keystone."""
-        k_client = context.clients.client('keystone')
-        tenants = k_client.tenants.list()
-        tenant_ids = [tenant.id for tenant in tenants]
+        keystoneclient = driver_base.BileanDriver().identity()
+        try:
+            projects = keystoneclient.project_list()
+        except exception.InternalError as ex:
+            LOG.exception(_('Failed in retrieving project list: %s'),
+                          six.text_type(ex))
+            return False
 
+        project_ids = [project.id for project in projects]
         users = cls.load_all(context)
         user_ids = [user.id for user in users]
-        for tid in tenant_ids:
-            if tid not in user_ids:
-                user = cls(tid, status=cls.INIT,
+        for pid in project_ids:
+            if pid not in user_ids:
+                user = cls(pid, status=cls.INIT,
                            status_reason='Init from keystone')
                 user.store(context)
         return True

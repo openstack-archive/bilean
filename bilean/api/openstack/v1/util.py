@@ -12,9 +12,11 @@
 #    under the License.
 
 import functools
-import six
 
+import six
 from webob import exc
+
+from bilean.common import policy
 
 
 def policy_enforce(handler):
@@ -27,11 +29,14 @@ def policy_enforce(handler):
     """
     @functools.wraps(handler)
     def handle_bilean_method(controller, req, tenant_id, **kwargs):
-        if req.context.tenant_id != tenant_id:
+        import pdb
+        pdb.set_trace()
+        if req.context.project != tenant_id:
             raise exc.HTTPForbidden()
-        allowed = req.context.policy.enforce(context=req.context,
-                                             action=handler.__name__,
-                                             scope=controller.REQUEST_SCOPE)
+
+        rule = "%s:%s" % (controller.REQUEST_SCOPE, handler.__name__)
+        allowed = policy.enforce(context=req.context,
+                                 rule=rule, target={})
         if not allowed:
             raise exc.HTTPForbidden()
         return handler(controller, req, **kwargs)

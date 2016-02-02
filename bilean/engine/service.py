@@ -11,6 +11,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import functools
 import six
 import socket
 
@@ -36,6 +37,19 @@ from bilean.engine import user as user_mod
 from bilean.rules import base as rule_base
 
 LOG = logging.getLogger(__name__)
+
+
+def request_context(func):
+    @functools.wraps(func)
+    def wrapped(self, ctx, *args, **kwargs):
+        if ctx is not None and not isinstance(ctx,
+                                              bilean_context.RequestContext):
+            ctx = bilean_context.RequestContext.from_dict(ctx.to_dict())
+        try:
+            return func(self, ctx, *args, **kwargs)
+        except exception.BileanException:
+            raise oslo_messaging.rpc.dispatcher.ExpectedException()
+    return wrapped
 
 
 class EngineService(service.Service):
@@ -64,7 +78,7 @@ class EngineService(service.Service):
         bilean_clients.initialise()
 
         if context is None:
-            self.context = bilean_context.get_service_context()
+            self.context = bilean_context.get_admin_context()
 
     def start(self):
         self.engine_id = socket.gethostname()
@@ -109,7 +123,7 @@ class EngineService(service.Service):
 
         super(EngineService, self).stop()
 
-    @bilean_context.request_context
+    @request_context
     def user_list(self, cnxt, show_deleted=False, limit=None,
                   marker=None, sort_keys=None, sort_dir=None,
                   filters=None):
@@ -132,7 +146,7 @@ class EngineService(service.Service):
 
         return user.to_dict()
 
-    @bilean_context.request_context
+    @request_context
     def user_get(self, cnxt, user_id):
         """Show detailed info about a specify user.
 
@@ -141,7 +155,7 @@ class EngineService(service.Service):
         user = user_mod.User.load(cnxt, user_id=user_id, realtime=True)
         return user.to_dict()
 
-    @bilean_context.request_context
+    @request_context
     def user_recharge(self, cnxt, user_id, value):
         """Do recharge for specify user."""
         user = user_mod.User.load(cnxt, user_id=user_id)
@@ -156,7 +170,7 @@ class EngineService(service.Service):
         LOG.info(_LI('Deleging user: %s'), user_id)
         user_mod.User.delete(cnxt, user_id=user_id)
 
-    @bilean_context.request_context
+    @request_context
     def rule_create(self, cnxt, name, spec, metadata=None):
         if len(rule_base.Rule.load_all(cnxt, filters={'name': name})) > 0:
             msg = _("The rule (%(name)s) already exists."
@@ -186,7 +200,7 @@ class EngineService(service.Service):
                  {'name': name, 'id': rule.id})
         return rule.to_dict()
 
-    @bilean_context.request_context
+    @request_context
     def rule_list(self, cnxt, limit=None, marker=None, sort_keys=None,
                   sort_dir=None, filters=None, show_deleted=False):
         if limit is not None:
@@ -203,21 +217,21 @@ class EngineService(service.Service):
 
         return [rule.to_dict() for rule in rules]
 
-    @bilean_context.request_context
+    @request_context
     def rule_get(self, cnxt, rule_id):
         rule = rule_base.Rule.load(cnxt, rule_id=rule_id)
         return rule.to_dict()
 
-    @bilean_context.request_context
+    @request_context
     def rule_update(self, cnxt, rule_id, values):
         return NotImplemented
 
-    @bilean_context.request_context
+    @request_context
     def rule_delete(self, cnxt, rule_id):
         LOG.info(_LI("Deleting rule: '%s'."), rule_id)
         rule_base.Rule.delete(cnxt, rule_id)
 
-    @bilean_context.request_context
+    @request_context
     def validate_creation(self, cnxt, resources):
         """Validate resources creation.
 
@@ -271,7 +285,7 @@ class EngineService(service.Service):
 
         return resource.to_dict()
 
-    @bilean_context.request_context
+    @request_context
     def resource_list(self, cnxt, user_id=None, limit=None, marker=None,
                       sort_keys=None, sort_dir=None, filters=None,
                       tenant_safe=True, show_deleted=False):
@@ -289,7 +303,7 @@ class EngineService(service.Service):
                                                    show_deleted=show_deleted)
         return [r.to_dict() for r in resources]
 
-    @bilean_context.request_context
+    @request_context
     def resource_get(self, cnxt, resource_id):
         resource = resource_mod.Resource.load(cnxt, resource_id=resource_id)
         return resource.to_dict()
@@ -323,7 +337,7 @@ class EngineService(service.Service):
             LOG.warn(_("Delete resource error %s"), ex)
             return
 
-    @bilean_context.request_context
+    @request_context
     def event_list(self, cnxt, user_id=None, limit=None, marker=None,
                    sort_keys=None, sort_dir=None, filters=None,
                    start_time=None, end_time=None, tenant_safe=True,
@@ -345,7 +359,7 @@ class EngineService(service.Service):
                                           show_deleted=show_deleted)
         return [e.to_dict() for e in events]
 
-    @bilean_context.request_context
+    @request_context
     def policy_create(self, cnxt, name, rule_ids=None, metadata=None):
         """Create a new policy."""
         if len(policy_mod.Policy.load_all(cnxt, filters={'name': name})) > 0:
@@ -378,7 +392,7 @@ class EngineService(service.Service):
         LOG.info(_LI("Policy is created: %(id)s."), policy.id)
         return policy.to_dict()
 
-    @bilean_context.request_context
+    @request_context
     def policy_list(self, cnxt, limit=None, marker=None, sort_keys=None,
                     sort_dir=None, filters=None, show_deleted=False):
         if limit is not None:
@@ -395,12 +409,12 @@ class EngineService(service.Service):
 
         return [policy.to_dict() for policy in policies]
 
-    @bilean_context.request_context
+    @request_context
     def policy_get(self, cnxt, policy_id):
         policy = policy_mod.Policy.load(cnxt, policy_id=policy_id)
         return policy.to_dict()
 
-    @bilean_context.request_context
+    @request_context
     def policy_update(self, cnxt, policy_id, name=None, metadata=None,
                       is_default=None):
         LOG.info(_LI("Updating policy: '%(id)s'"), {'id': policy_id})
@@ -437,15 +451,15 @@ class EngineService(service.Service):
         LOG.info(_LI("Policy '%(id)s' is updated."), {'id': policy_id})
         return policy.to_dict()
 
-    @bilean_context.request_context
+    @request_context
     def policy_add_rule(self, cnxt, policy_id, rule_ids):
         return NotImplemented
 
-    @bilean_context.request_context
+    @request_context
     def policy_remove_rule(self, cnxt, policy_id, rule_ids):
         return NotImplemented
 
-    @bilean_context.request_context
+    @request_context
     def policy_delete(self, cnxt, policy_id):
         LOG.info(_LI("Deleting policy: '%s'."), policy_id)
         policy_mod.Policy.delete(cnxt, policy_id)
