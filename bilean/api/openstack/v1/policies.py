@@ -49,6 +49,12 @@ class PolicyController(object):
     # Define request scope (must match what is in policy.json)
     REQUEST_SCOPE = 'policies'
 
+    SUPPORTED_ACTIONS = (
+        ADD_RULES,
+    ) = (
+        'add_rules',
+    )
+
     def __init__(self, options):
         self.options = options
         self.rpc_client = rpc_client.EngineClient()
@@ -134,6 +140,30 @@ class PolicyController(object):
     def delete(self, req, policy_id):
         """Delete a policy with given policy_id"""
         self.rpc_client.policy_delete(req.context, policy_id)
+
+    @util.policy_enforce
+    def action(self, req, policy_id, body=None):
+        '''Perform specified action on a policy.'''
+        body = body or {}
+        if len(body) < 1:
+            raise exc.HTTPBadRequest(_('No action specified'))
+
+        if len(body) > 1:
+            raise exc.HTTPBadRequest(_('Multiple actions specified'))
+
+        action = list(body.keys())[0]
+        if action not in self.SUPPORTED_ACTIONS:
+            msg = _("Unrecognized action '%s' specified") % action
+            raise exc.HTTPBadRequest(msg)
+
+        if action == self.ADD_RULES:
+            rules = body.get(action).get('rules')
+            if rules is None or not isinstance(rules, list) or len(rules) == 0:
+                raise exc.HTTPBadRequest(_('No rule to add'))
+            policy = self.rpc_client.policy_add_rules(
+                req.context, policy_id, rules)
+
+            return {'policy': policy}
 
 
 def create_resource(options):

@@ -148,6 +148,12 @@ class API(wsgi.Router):
                                   action="delete",
                                   conditions={'method': 'DELETE'})
 
+            # Action
+            policy_mapper.connect("policy_action",
+                                  "/{policy_id}/action",
+                                  action="action",
+                                  conditions={'method': 'POST'})
+
         # Events
         event_resource = events.create_resource(conf)
         event_path = "/{tenant_id}/events"

@@ -185,3 +185,8 @@ class EngineClient(object):
     def policy_delete(self, ctxt, policy_id):
         return self.call(ctxt, self.make_msg('policy_delete',
                                              policy_id=policy_id))
+
+    def policy_add_rules(self, ctxt, policy_id, rules):
+        return self.call(ctxt, self.make_msg('policy_add_rules',
+                                             policy_id=policy_id,
+                                             rules=rules))

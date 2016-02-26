@@ -449,8 +449,43 @@ class EngineService(service.Service):
         return policy.to_dict()
 
     @request_context
-    def policy_add_rule(self, cnxt, policy_id, rule_ids):
-        return NotImplemented
+    def policy_add_rules(self, cnxt, policy_id, rules):
+
+        LOG.info(_LI("Adding rules '%(rules)s' to policy '%(policy)s'."),
+                 {'policy': policy_id, 'rules': rules})
+        policy = policy_mod.Policy.load(cnxt, policy_id=policy_id)
+        exist_types = [r['type'] for r in policy.rules]
+
+        error_rules = []
+        ok_rules = []
+        not_found = []
+        for rule in rules:
+            try:
+                db_rule = rule_base.Rule.load(cnxt, rule_id=rule)
+                append_data = {'id': db_rule.id, 'type': db_rule.type}
+                if db_rule.type in exist_types:
+                    error_rules.append(append_data)
+                else:
+                    ok_rules.append(append_data)
+            except exception.RuleNotFound:
+                not_found.append(rule)
+                pass
+
+        error = None
+        if len(error_rules) > 0:
+            error = _("Rule types of rules %(rules)s exist in policy "
+                      "%(policy)s.") % {'rules': error_rules,
+                                        'policy': policy_id}
+        if len(not_found) > 0:
+            error = _("Rules not found: %s") % not_found
+
+        if error is not None:
+            LOG.error(error)
+            raise exception.BileanBadRequest(msg=error)
+
+        policy.rules += ok_rules
+        policy.store(cnxt)
+        return policy.to_dict()
 
     @request_context
     def policy_remove_rule(self, cnxt, policy_id, rule_ids):
