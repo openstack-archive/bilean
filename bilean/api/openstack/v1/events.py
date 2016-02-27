@@ -32,7 +32,7 @@ class EventController(object):
         self.rpc_client = rpc_client.EngineClient()
 
     @util.policy_enforce
-    def index(self, req, tenant_id):
+    def index(self, req):
         """Lists summary information for all events"""
         filter_whitelist = {
             'resource_type': 'mixed',

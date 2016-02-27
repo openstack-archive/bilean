@@ -121,14 +121,14 @@ class User(object):
 
     @classmethod
     def load(cls, context, user_id=None, user=None, realtime=False,
-             show_deleted=False, tenant_safe=True):
+             show_deleted=False, project_safe=True):
         '''Retrieve a user from database.'''
         if context.is_admin:
-            tenant_safe = False
+            project_safe = False
         if user is None:
             user = db_api.user_get(context, user_id,
                                    show_deleted=show_deleted,
-                                   tenant_safe=tenant_safe)
+                                   project_safe=project_safe)
             if user is None:
                 raise exception.UserNotFound(user=user_id)
 
