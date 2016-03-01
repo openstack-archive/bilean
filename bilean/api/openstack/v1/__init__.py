@@ -52,6 +52,12 @@ class API(wsgi.Router):
                                 action="recharge",
                                 conditions={'method': 'PUT'})
 
+            # Action
+            user_mapper.connect("user_action",
+                                "/{user_id}/action",
+                                action="action",
+                                conditions={'method': 'POST'})
+
         # Resources
         res_resource = resources.create_resource(conf)
         res_path = "/{project_id}/resources"
