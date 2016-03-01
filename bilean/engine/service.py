@@ -235,7 +235,7 @@ class EngineService(service.Service):
         If user's balance is not enough for resources to keep 1 hour,
         will fail to validate.
         """
-        user = user_mod.User.load(cnxt, user_id=cnxt.tenant_id)
+        user = user_mod.User.load(cnxt, user_id=cnxt.project)
         policy = policy_mod.Policy.load(cnxt, policy_id=user.policy_id)
         count = resources.get('count', 1)
         total_rate = 0
@@ -285,7 +285,7 @@ class EngineService(service.Service):
     @request_context
     def resource_list(self, cnxt, user_id=None, limit=None, marker=None,
                       sort_keys=None, sort_dir=None, filters=None,
-                      tenant_safe=True, show_deleted=False):
+                      project_safe=True, show_deleted=False):
         if limit is not None:
             limit = utils.parse_int_param('limit', limit)
         if show_deleted is not None:
@@ -296,7 +296,7 @@ class EngineService(service.Service):
                                                    sort_keys=sort_keys,
                                                    sort_dir=sort_dir,
                                                    filters=filters,
-                                                   tenant_safe=tenant_safe,
+                                                   project_safe=project_safe,
                                                    show_deleted=show_deleted)
         return [r.to_dict() for r in resources]
 
@@ -337,7 +337,7 @@ class EngineService(service.Service):
     @request_context
     def event_list(self, cnxt, user_id=None, limit=None, marker=None,
                    sort_keys=None, sort_dir=None, filters=None,
-                   start_time=None, end_time=None, tenant_safe=True,
+                   start_time=None, end_time=None, project_safe=True,
                    show_deleted=False):
         if limit is not None:
             limit = utils.parse_int_param('limit', limit)
@@ -352,7 +352,7 @@ class EngineService(service.Service):
                                           filters=filters,
                                           start_time=start_time,
                                           end_time=end_time,
-                                          tenant_safe=tenant_safe,
+                                          project_safe=project_safe,
                                           show_deleted=show_deleted)
         return [e.to_dict() for e in events]
 

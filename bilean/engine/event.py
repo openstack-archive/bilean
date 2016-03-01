@@ -50,12 +50,12 @@ class Event(object):
         return cls(record.timestamp, **kwargs)
 
     @classmethod
-    def load(cls, context, db_event=None, event_id=None, tenant_safe=True):
+    def load(cls, context, db_event=None, event_id=None, project_safe=True):
         '''Retrieve an event record from database.'''
         if db_event is not None:
             return cls.from_db_record(db_event)
 
-        record = db_api.event_get(context, event_id, tenant_safe=tenant_safe)
+        record = db_api.event_get(context, event_id, project_safe=project_safe)
         if record is None:
             raise exception.EventNotFound(event=event_id)
 
@@ -64,7 +64,7 @@ class Event(object):
     @classmethod
     def load_all(cls, context, user_id=None, limit=None, marker=None,
                  sort_keys=None, sort_dir=None, filters=None,
-                 start_time=None, end_time=None, tenant_safe=True,
+                 start_time=None, end_time=None, project_safe=True,
                  show_deleted=False,):
         '''Retrieve all events from database.'''
 
@@ -73,7 +73,7 @@ class Event(object):
                                        sort_keys=sort_keys, sort_dir=sort_dir,
                                        start_time=start_time,
                                        end_time=end_time,
-                                       tenant_safe=tenant_safe,
+                                       project_safe=project_safe,
                                        show_deleted=show_deleted)
 
         for record in records:

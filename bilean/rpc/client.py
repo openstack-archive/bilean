@@ -110,13 +110,13 @@ class EngineClient(object):
 
     def resource_list(self, ctxt, user_id=None, limit=None, marker=None,
                       sort_keys=None, sort_dir=None, filters=None,
-                      tenant_safe=True, show_deleted=False):
+                      project_safe=True, show_deleted=False):
         return self.call(ctxt, self.make_msg('resource_list', user_id=user_id,
                                              limit=limit, marker=marker,
                                              sort_keys=sort_keys,
                                              sort_dir=sort_dir,
                                              filters=filters,
-                                             tenant_safe=tenant_safe,
+                                             project_safe=project_safe,
                                              show_deleted=show_deleted))
 
     def resource_get(self, ctxt, resource_id):
@@ -139,7 +139,7 @@ class EngineClient(object):
 
     def event_list(self, ctxt, user_id=None, limit=None, marker=None,
                    sort_keys=None, sort_dir=None, filters=None,
-                   start_time=None, end_time=None, tenant_safe=True,
+                   start_time=None, end_time=None, project_safe=True,
                    show_deleted=False):
         return self.call(ctxt, self.make_msg('event_list', user_id=user_id,
                                              limit=limit, marker=marker,
@@ -148,7 +148,7 @@ class EngineClient(object):
                                              filters=filters,
                                              start_time=start_time,
                                              end_time=end_time,
-                                             tenant_safe=tenant_safe,
+                                             project_safe=project_safe,
                                              show_deleted=show_deleted))
 
     def validate_creation(self, cnxt, resources):

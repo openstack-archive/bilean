@@ -82,12 +82,12 @@ class Resource(object):
 
     @classmethod
     def load(cls, context, resource_id=None, resource=None,
-             show_deleted=False, tenant_safe=True):
+             show_deleted=False, project_safe=True):
         '''Retrieve a resource from database.'''
         if resource is None:
             resource = db_api.resource_get(context, resource_id,
                                            show_deleted=show_deleted,
-                                           tenant_safe=tenant_safe)
+                                           project_safe=project_safe)
             if resource is None:
                 raise exception.ResourceNotFound(resource=resource_id)
 
@@ -96,7 +96,7 @@ class Resource(object):
     @classmethod
     def load_all(cls, context, user_id=None, show_deleted=False,
                  limit=None, marker=None, sort_keys=None, sort_dir=None,
-                 filters=None, tenant_safe=True):
+                 filters=None, project_safe=True):
         '''Retrieve all users of from database.'''
 
         records = db_api.resource_get_all(context, user_id=user_id,
@@ -105,7 +105,7 @@ class Resource(object):
                                           sort_keys=sort_keys,
                                           sort_dir=sort_dir,
                                           filters=filters,
-                                          tenant_safe=tenant_safe)
+                                          project_safe=project_safe)
 
         return [cls._from_db_record(record) for record in records]
 

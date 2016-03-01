@@ -41,10 +41,10 @@ def db_version(engine):
     return IMPL.db_version(engine)
 
 
-def user_get(context, user_id, show_deleted=False, tenant_safe=True):
+def user_get(context, user_id, show_deleted=False, project_safe=True):
     return IMPL.user_get(context, user_id,
                          show_deleted=show_deleted,
-                         tenant_safe=tenant_safe)
+                         project_safe=project_safe)
 
 
 def user_update(context, user_id, values):
@@ -93,20 +93,20 @@ def rule_delete(context, rule_id):
     return IMPL.rule_delete(context, rule_id)
 
 
-def resource_get(context, resource_id, show_deleted=False, tenant_safe=True):
+def resource_get(context, resource_id, show_deleted=False, project_safe=True):
     return IMPL.resource_get(context, resource_id,
                              show_deleted=show_deleted,
-                             tenant_safe=tenant_safe)
+                             project_safe=project_safe)
 
 
 def resource_get_all(context, user_id=None, show_deleted=False,
                      limit=None, marker=None, sort_keys=None,
-                     sort_dir=None, filters=None, tenant_safe=True):
+                     sort_dir=None, filters=None, project_safe=True):
     return IMPL.resource_get_all(context, user_id=user_id,
                                  show_deleted=show_deleted,
                                  limit=limit, marker=marker,
                                  sort_keys=sort_keys, sort_dir=sort_dir,
-                                 filters=filters, tenant_safe=tenant_safe)
+                                 filters=filters, project_safe=project_safe)
 
 
 def resource_create(context, values):
@@ -121,19 +121,19 @@ def resource_delete(context, resource_id):
     IMPL.resource_delete(context, resource_id)
 
 
-def event_get(context, event_id, tenant_safe=True):
-    return IMPL.event_get(context, event_id, tenant_safe=tenant_safe)
+def event_get(context, event_id, project_safe=True):
+    return IMPL.event_get(context, event_id, project_safe=project_safe)
 
 
 def event_get_all(context, user_id=None, show_deleted=False,
                   filters=None, limit=None, marker=None,
-                  sort_keys=None, sort_dir=None, tenant_safe=True,
+                  sort_keys=None, sort_dir=None, project_safe=True,
                   start_time=None, end_time=None):
     return IMPL.event_get_all(context, user_id=user_id,
                               show_deleted=show_deleted,
                               filters=filters, limit=limit,
                               marker=marker, sort_keys=sort_keys,
-                              sort_dir=sort_dir, tenant_safe=tenant_safe,
+                              sort_dir=sort_dir, project_safe=project_safe,
                               start_time=start_time, end_time=end_time)
 
 

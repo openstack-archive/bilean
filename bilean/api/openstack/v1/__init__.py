@@ -30,7 +30,7 @@ class API(wsgi.Router):
 
         # Users
         users_resource = users.create_resource(conf)
-        users_path = "/{tenant_id}/users"
+        users_path = "/{project_id}/users"
         with mapper.submapper(controller=users_resource,
                               path_prefix=users_path) as user_mapper:
 
@@ -54,7 +54,7 @@ class API(wsgi.Router):
 
         # Resources
         res_resource = resources.create_resource(conf)
-        res_path = "/{tenant_id}/resources"
+        res_path = "/{project_id}/resources"
         with mapper.submapper(controller=res_resource,
                               path_prefix=res_path) as res_mapper:
 
@@ -78,7 +78,7 @@ class API(wsgi.Router):
 
         # Rules
         rule_resource = rules.create_resource(conf)
-        rule_path = "/{tenant_id}/rules"
+        rule_path = "/{project_id}/rules"
         with mapper.submapper(controller=rule_resource,
                               path_prefix=rule_path) as rule_mapper:
 
@@ -114,7 +114,7 @@ class API(wsgi.Router):
 
         # Policies
         policy_resource = policies.create_resource(conf)
-        policy_path = "/{tenant_id}/policies"
+        policy_path = "/{project_id}/policies"
         with mapper.submapper(controller=policy_resource,
                               path_prefix=policy_path) as policy_mapper:
 
@@ -156,7 +156,7 @@ class API(wsgi.Router):
 
         # Events
         event_resource = events.create_resource(conf)
-        event_path = "/{tenant_id}/events"
+        event_path = "/{project_id}/events"
         with mapper.submapper(controller=event_resource,
                               path_prefix=event_path) as event_mapper:
 

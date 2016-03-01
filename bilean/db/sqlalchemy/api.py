@@ -115,7 +115,7 @@ def db_version(engine):
     return migration.db_version(engine)
 
 
-def user_get(context, user_id, show_deleted=False, tenant_safe=True):
+def user_get(context, user_id, show_deleted=False, project_safe=True):
     query = model_query(context, models.User)
     user = query.get(user_id)
 
@@ -123,7 +123,7 @@ def user_get(context, user_id, show_deleted=False, tenant_safe=True):
     if user is None or user.deleted_at is not None and not deleted_ok:
         return None
 
-    if tenant_safe and context.tenant_id != user.id:
+    if project_safe and context.project != user.id:
         return None
 
     return user
@@ -252,7 +252,7 @@ def rule_delete(context, rule_id):
     session.flush()
 
 
-def resource_get(context, resource_id, show_deleted=False, tenant_safe=True):
+def resource_get(context, resource_id, show_deleted=False, project_safe=True):
     query = model_query(context, models.Resource)
     resource = query.get(resource_id)
 
@@ -260,7 +260,7 @@ def resource_get(context, resource_id, show_deleted=False, tenant_safe=True):
     if resource is None or resource.deleted_at is not None and not deleted_ok:
         return None
 
-    if tenant_safe and context.tenant_id != resource.user_id:
+    if project_safe and context.project != resource.user_id:
         return None
 
     return resource
@@ -268,12 +268,12 @@ def resource_get(context, resource_id, show_deleted=False, tenant_safe=True):
 
 def resource_get_all(context, user_id=None, show_deleted=False,
                      limit=None, marker=None, sort_keys=None, sort_dir=None,
-                     filters=None, tenant_safe=True):
+                     filters=None, project_safe=True):
     query = soft_delete_aware_query(context, models.Resource,
                                     show_deleted=show_deleted)
 
-    if tenant_safe:
-        query = query.filter_by(user_id=context.tenant_id)
+    if project_safe:
+        query = query.filter_by(user_id=context.project)
 
     elif user_id:
         query = query.filter_by(user_id=user_id)
@@ -327,14 +327,14 @@ def resource_delete(context, resource_id, soft_delete=True):
     session.flush()
 
 
-def event_get(context, event_id, tenant_safe=True):
+def event_get(context, event_id, project_safe=True):
     query = model_query(context, models.Event)
     event = query.get(event_id)
 
     if event is None:
         return None
 
-    if tenant_safe and context.tenant_id != event.user_id:
+    if project_safe and context.project != event.user_id:
         return None
 
     return event
@@ -342,13 +342,13 @@ def event_get(context, event_id, tenant_safe=True):
 
 def event_get_all(context, user_id=None, limit=None, marker=None,
                   sort_keys=None, sort_dir=None, filters=None,
-                  start_time=None, end_time=None, tenant_safe=True,
+                  start_time=None, end_time=None, project_safe=True,
                   show_deleted=False):
     query = soft_delete_aware_query(context, models.Event,
                                     show_deleted=show_deleted)
 
-    if tenant_safe:
-        query = query.filter_by(user_id=context.tenant_id)
+    if project_safe:
+        query = query.filter_by(user_id=context.project)
 
     elif user_id:
         query = query.filter_by(user_id=user_id)
