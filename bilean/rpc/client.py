@@ -83,6 +83,11 @@ class EngineClient(object):
         return self.call(ctxt, self.make_msg('user_delete',
                                              user_id=user_id))
 
+    def user_attach_policy(self, ctxt, user_id, policy_id):
+        return self.call(ctxt, self.make_msg('user_attach_policy',
+                                             user_id=user_id,
+                                             policy_id=policy_id))
+
     def rule_list(self, ctxt, limit=None, marker=None, sort_keys=None,
                   sort_dir=None, filters=None, show_deleted=False):
         return self.call(ctxt, self.make_msg('rule_list', limit=limit,

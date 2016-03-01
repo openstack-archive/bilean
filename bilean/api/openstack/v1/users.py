@@ -36,6 +36,12 @@ class UserController(object):
     # Define request scope (must match what is in policy.json)
     REQUEST_SCOPE = 'users'
 
+    SUPPORTED_ACTIONS = (
+        RECHARGE, ATTACH_POLICY,
+    ) = (
+        'recharge', 'attach_policy',
+    )
+
     def __init__(self, options):
         self.options = options
         self.rpc_client = rpc_client.EngineClient()
@@ -78,26 +84,42 @@ class UserController(object):
         return {'user': user}
 
     @util.policy_enforce
-    def recharge(self, req, user_id, body):
-        """Recharge for a specify user
-
-        :param user_id: Id of user to recharge
-        """
+    def action(self, req, user_id, body=None):
+        """Perform specified action on a user."""
         if not validator.is_valid_body(body):
             raise exc.HTTPUnprocessableEntity()
 
-        value = body.get('value', None)
-        if value is None:
-            raise exc.HTTPBadRequest(_("Malformed request data, missing "
-                                       "'value' key in request body."))
+        if len(body) < 1:
+            raise exc.HTTPBadRequest(_('No action specified'))
 
-        try:
-            validator.validate_float(value, 'recharge_value',
-                                     consts.MIN_VALUE, consts.MAX_VALUE)
-        except exception.InvalidInput as e:
-            raise exc.HTTPBadRequest(explanation=e.format_message())
+        if len(body) > 1:
+            raise exc.HTTPBadRequest(_('Multiple actions specified'))
 
-        user = self.rpc_client.user_recharge(req.context, user_id, value)
+        action = list(body.keys())[0]
+        if action not in self.SUPPORTED_ACTIONS:
+            msg = _("Unrecognized action '%s' specified") % action
+            raise exc.HTTPBadRequest(msg)
+
+        if action == self.ATTACH_POLICY:
+            policy = body.get(action).get('policy', None)
+            if policy is None:
+                raise exc.HTTPBadRequest(_("Malformed request data, no policy "
+                                           "specified to attach."))
+            user = self.rpc_client.user_attach_policy(
+                req.context, user_id, policy)
+        elif action == self.RECHARGE:
+            value = body.get(action).get('value', None)
+            if value is None:
+                raise exc.HTTPBadRequest(_("Malformed request data, missing "
+                                           "'value' key in request body."))
+            try:
+                validator.validate_float(value, 'recharge_value',
+                                         consts.MIN_VALUE, consts.MAX_VALUE)
+            except exception.InvalidInput as e:
+                raise exc.HTTPBadRequest(explanation=e.format_message())
+
+            user = self.rpc_client.user_recharge(req.context, user_id, value)
+
         return {'user': user}
 
 

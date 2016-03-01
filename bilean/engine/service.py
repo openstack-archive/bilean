@@ -168,6 +168,23 @@ class EngineService(service.Service):
         user_mod.User.delete(cnxt, user_id=user_id)
 
     @request_context
+    def user_attach_policy(self, cnxt, user_id, policy_id):
+        """Attach specified policy to user."""
+        LOG.info(_LI("Attaching policy %(policy)s to user %(user)s."),
+                 {'policy': policy_id, 'user': user_id})
+        user = user_mod.User.load(cnxt, user_id=user_id)
+        if user.policy_id is not None:
+            msg = _("User %(user)s is using policy %(now_policy)s, can not "
+                    "attach %(policy)s.") % {'user': user_id,
+                                             'now_policy': user.policy_id,
+                                             'policy': policy_id}
+            raise exception.BileanBadRequest(msg=msg)
+
+        user.policy_id = policy_id
+        user.store(cnxt)
+        return user.to_dict()
+
+    @request_context
     def rule_create(self, cnxt, name, spec, metadata=None):
         if len(rule_base.Rule.load_all(cnxt, filters={'name': name})) > 0:
             msg = _("The rule (%(name)s) already exists."
