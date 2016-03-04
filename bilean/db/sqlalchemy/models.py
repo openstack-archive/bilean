@@ -147,7 +147,7 @@ class Resource(BASE, BileanBase, SoftDelete, models.TimestampMixin):
 
     __tablename__ = 'resource'
     id = sqlalchemy.Column(sqlalchemy.String(36), primary_key=True,
-                           default=lambda: UUID4())
+                           nullable=False)
     user_id = sqlalchemy.Column(
         sqlalchemy.String(36),
         sqlalchemy.ForeignKey('user.id'),

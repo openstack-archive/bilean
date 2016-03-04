@@ -31,6 +31,7 @@ from oslo_i18n import _lazy
 from oslo_log import log as logging
 from oslo_service import service
 
+from bilean.common import config
 from bilean.common import messaging
 
 _lazy.enable_lazy()
@@ -40,7 +41,7 @@ LOG = logging.getLogger('bilean.notification')
 
 if __name__ == "__main__":
     logging.register_options(cfg.CONF)
-    cfg.CONF(project='bilean', prog='bilean-engine')
+    cfg.CONF(project='bilean', prog='bilean-notification')
     logging.setup(cfg.CONF, 'bilean-notification')
     logging.set_defaults()
     messaging.setup()

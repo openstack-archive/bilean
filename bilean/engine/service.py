@@ -270,18 +270,18 @@ class EngineService(service.Service):
             return dict(validation=False)
         return dict(validation=True)
 
-    def resource_create(self, id, user_id, resource_type, properties,
-                        **kwargs):
+    def resource_create(self, cnxt, resource_id, user_id, resource_type,
+                        properties):
         """Create resource by given database
 
         Cause new resource would update user's rate, user update and billing
         would be done.
 
         """
-        resource = resource_mod.Resource(id, user_id, resource_type,
+        resource = resource_mod.Resource(resource_id, user_id, resource_type,
                                          properties)
         # Find the exact rule of resource
-        user = user_mod.load(self.context, user_id=user_id)
+        user = user_mod.User.load(self.context, user_id=user_id)
         user_policy = policy_mod.Policy.load(
             self.context, policy_id=user.policy_id)
         rule = user_policy.find_rule(self.context, resource_type)
@@ -295,7 +295,8 @@ class EngineService(service.Service):
         user.update_with_resource(self.context, resource)
 
         # As the rate of user has changed, the billing job for the user
-        # should change too.  self.scheduler.update_user_job(user)
+        # should change too.
+        self.scheduler.update_user_job(user)
 
         return resource.to_dict()
 

@@ -15,6 +15,7 @@ from bilean.common import context as bilean_context
 from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common.i18n import _LI
+from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.engine import user as user_mod
 from bilean import notifier
@@ -205,19 +206,19 @@ class BileanScheduler(object):
     def _add_notify_job(self, user):
         if not user.rate:
             return False
-        total_seconds = user['balance'] / user['rate']
+        total_seconds = user.balance / user.rate
         prior_notify_time = cfg.CONF.scheduler.prior_notify_time * 3600
         notify_seconds = total_seconds - prior_notify_time
         notify_seconds = notify_seconds if notify_seconds > 0 else 0
         run_date = timeutils.utcnow() + timedelta(seconds=notify_seconds)
         job_params = {'run_date': run_date}
-        job_id = self._generate_job_id(user['id'], self.NOTIFY)
-        self.add_job(self._notify_task, job_id, params=job_params)
+        job_id = self._generate_job_id(user.id, self.NOTIFY)
+        self.add_job(self._notify_task, job_id, **job_params)
         # Save job to database
         job = {'id': job_id,
                'job_type': self.NOTIFY,
                'engine_id': self.engine_id,
-               'parameters': {'run_date': run_date}}
+               'parameters': {'run_date': utils.format_time(run_date)}}
         db_api.job_create(self.context, job)
 
     def _add_freeze_job(self, user):
@@ -227,26 +228,26 @@ class BileanScheduler(object):
         run_date = timeutils.utcnow() + timedelta(seconds=total_seconds)
         job_params = {'run_date': run_date}
         job_id = self._generate_job_id(user.id, self.FREEZE)
-        self.add_job(self._freeze_task, job_id, params=job_params)
+        self.add_job(self._freeze_task, job_id, **job_params)
         # Save job to database
         job = {'id': job_id,
                'job_type': self.FREEZE,
                'engine_id': self.engine_id,
-               'parameters': {'run_date': run_date}}
+               'parameters': {'run_date': utils.format_time(run_date)}}
         db_api.job_create(self.context, job)
         return True
 
     def _add_daily_job(self, user):
         job_id = self._generate_job_id(user.id, self.DAILY)
-        params = {'hour': random.randint(0, 23),
-                  'minute': random.randint(0, 59)}
+        job_params = {'hour': random.randint(0, 23),
+                      'minute': random.randint(0, 59)}
         self.add_job(self._daily_task, job_id, trigger_type='cron',
-                     params=params)
+                     **job_params)
         # Save job to database
         job = {'id': job_id,
                'job_type': self.DAILY,
                'engine_id': self.engine_id,
-               'parameters': params}
+               'parameters': job_params}
         db_api.job_create(self.context, job)
         return True
 

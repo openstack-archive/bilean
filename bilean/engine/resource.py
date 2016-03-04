@@ -37,8 +37,6 @@ class Resource(object):
         self.created_at = kwargs.get('created_at', None)
         self.updated_at = kwargs.get('updated_at', None)
         self.deleted_at = kwargs.get('deleted_at', None)
-        if not self.rule_id:
-            self.get_resource_price()
 
     def store(self, context):
         """Store the resource record into database table."""
@@ -57,7 +55,7 @@ class Resource(object):
         if self.created_at:
             db_api.resource_update(context, self.id, values)
         else:
-            values.id = values.update(id=self.id)
+            values.update(id=self.id)
             resource = db_api.resource_create(context, values)
             self.created_at = resource.created_at
 

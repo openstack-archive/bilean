@@ -130,7 +130,7 @@ def user_get(context, user_id, show_deleted=False, project_safe=True):
 
 
 def user_update(context, user_id, values):
-    user = user_get(context, user_id)
+    user = user_get(context, user_id, project_safe=False)
 
     if user is None:
         raise exception.UserNotFound(user=user_id)

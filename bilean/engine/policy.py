@@ -102,10 +102,10 @@ class Policy(object):
         '''Find the exact rule from self.rules by rtype'''
 
         for rule in self.rules:
-            if rtype == rule['type']:
+            if rtype == rule['type'].split('-')[0]:
                 return rule_base.Rule.load(context, rule_id=rule['id'])
 
-        return None
+        raise exception.RuleNotFound(rule_type=rtype)
 
     def to_dict(self):
         policy_dict = {

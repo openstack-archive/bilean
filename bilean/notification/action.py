@@ -54,7 +54,7 @@ class ResourceAction(Action):
     def __init__(self, cnxt, action, data):
         super(ResourceAction, self).__init__(cnxt, action, data)
 
-        self.id = data.get('id', None)
+        self.id = data.get('resource_ref', None)
         self.user_id = data.get('user_id', None)
         self.resource_type = data.get('resource_type', None)
         self.properties = {}
@@ -62,7 +62,7 @@ class ResourceAction(Action):
 
     def _parse_and_validate(self):
         for key in self.data.keys():
-            if key not in ['id', 'user_id', 'resource_type']:
+            if key not in ['resource_ref', 'user_id', 'resource_type']:
                 self.properties[key] = self.data[key]
         if not self.id:
             msg = _("Id of resource can not be None")
