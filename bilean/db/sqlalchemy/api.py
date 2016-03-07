@@ -289,7 +289,7 @@ def resource_get_all(context, user_id=None, show_deleted=False,
     }
     keys = _get_sort_keys(sort_keys, sort_key_map)
     query = db_filters.exact_filter(query, models.Resource, filters)
-    return _paginate_query(context, query, models.Node,
+    return _paginate_query(context, query, models.Resource,
                            limit=limit, marker=marker,
                            sort_keys=keys, sort_dir=sort_dir,
                            default_sort_keys=['created_at']).all()
@@ -368,8 +368,8 @@ def event_get_all(context, user_id=None, limit=None, marker=None,
         consts.EVENT_USER_ID: models.Event.user_id.key,
     }
     keys = _get_sort_keys(sort_keys, sort_key_map)
-    query = db_filters.exact_filter(query, models.Resource, filters)
-    return _paginate_query(context, query, models.Node,
+    query = db_filters.exact_filter(query, models.Event, filters)
+    return _paginate_query(context, query, models.Event,
                            limit=limit, marker=marker,
                            sort_keys=keys, sort_dir=sort_dir,
                            default_sort_keys=['timestamp']).all()

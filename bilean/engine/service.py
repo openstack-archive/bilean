@@ -289,10 +289,10 @@ class EngineService(service.Service):
         # Update resource with rule_id and rate
         resource.rule_id = rule.id
         resource.rate = rule.get_price(resource)
-        resource.store(self.context)
 
         # Update user with resource
         user.update_with_resource(self.context, resource)
+        resource.store(self.context)
 
         # As the rate of user has changed, the billing job for the user
         # should change too.

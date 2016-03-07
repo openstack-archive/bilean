@@ -104,6 +104,7 @@ def upgrade(migrate_engine):
         sqlalchemy.Column('resource_type', sqlalchemy.String(36)),
         sqlalchemy.Column('action', sqlalchemy.String(36)),
         sqlalchemy.Column('value', sqlalchemy.Float),
+        sqlalchemy.Column('deleted_at', sqlalchemy.DateTime),
         mysql_engine='InnoDB',
         mysql_charset='utf8'
     )

@@ -17,7 +17,7 @@ from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common import utils
 from bilean.db import api as db_api
-from bilean.engine import resource as bilean_resources
+from bilean.engine import resource as resource_mod
 
 from oslo_log import log as logging
 from oslo_utils import timeutils
@@ -82,7 +82,6 @@ class Event(object):
     def store(self, context):
         '''Store the event into database and return its ID.'''
         values = {
-            'id': self.id,
             'user_id': self.user_id,
             'action': self.action,
             'resource_type': self.resource_type,
@@ -124,21 +123,24 @@ def record(context, user_id, action=None, seconds=0, value=0):
     """
     try:
         if action == 'charge':
-            resources = bilean_resources.resource_get_all(
-                context, user_id=user_id)
+            resources = resource_mod.Resource.load_all(
+                context, user_id=user_id, project_safe=False)
             for resource in resources:
-                usage = resource['rate'] * seconds
+                usage = resource.rate * seconds
                 event = Event(timeutils.utcnow(),
                               user_id=user_id,
                               action=action,
-                              resource_type=resource['resource_type'],
+                              resource_type=resource.resource_type,
                               value=usage)
                 event.store(context)
-        else:
+        elif action == 'recharge':
             event = Event(timeutils.utcnow(),
                           user_id=user_id,
                           action=action,
                           value=value)
             event.store(context)
+        else:
+            msg = _("Unsupported event action '%s'.") % action
+            raise exception.BileanException(msg=msg)
     except Exception as exc:
         LOG.error(_("Error generate events: %s") % six.text_type(exc))
