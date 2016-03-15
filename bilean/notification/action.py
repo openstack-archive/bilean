@@ -90,7 +90,7 @@ class ResourceAction(Action):
 
     def do_delete(self):
         """Delete a resource"""
-        return self.rpc_client.resource_delete(self.cnxt, self.data)
+        return self.rpc_client.resource_delete(self.cnxt, self.id)
 
 
 class UserAction(Action):

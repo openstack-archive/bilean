@@ -323,7 +323,7 @@ class EngineService(service.Service):
         resource = resource_mod.Resource.load(cnxt, resource_id=resource_id)
         return resource.to_dict()
 
-    def resource_update(self, resource):
+    def resource_update(self, cnxt, resource):
         """Do resource update."""
         res = resource_mod.Resource.load(
             self.context, resource_id=resource['id'])
@@ -339,11 +339,11 @@ class EngineService(service.Service):
 
         self.scheduler.update_user_job(user)
 
-    def resource_delete(self, resource):
+    def resource_delete(self, cnxt, resource_id):
         """Do resource delete"""
         res = resource_mod.Resource.load(
-            self.context, resource_id=resource['id'])
-        user = user_mod.User.load(self.context, user_id=resource['user_id'])
+            self.context, resource_id=resource_id, project_safe=False)
+        user = user_mod.User.load(self.context, user_id=res.user_id)
         user.update_with_resource(self.context, res, action='delete')
         self.scheduler.update_user_job(user)
         try:

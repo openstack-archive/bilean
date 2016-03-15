@@ -180,11 +180,12 @@ class User(object):
         }
         return user_dict
 
-    def set_status(self, status, reason=None):
+    def set_status(self, context, status, reason=None):
         '''Set status of the user.'''
         self.status = status
         if reason:
             self.status_reason = reason
+        self.store(context)
 
     def update_with_resource(self, context, resource, action='create'):
         '''Update user with resource'''
@@ -225,20 +226,19 @@ class User(object):
             self.do_bill(context)
         self.balance += value
         if self.status == self.INIT and self.balance > 0:
-            self.set_status(self.ACTIVE, reason='Recharged')
+            self.set_status(context, self.FREE, reason='Recharged')
         elif self.status == self.FREEZE and self.balance > 0:
-            reason = _("Status change from freeze to active because "
+            reason = _("Status change from 'freeze' to 'free' because "
                        "of recharge.")
-            self.set_status(self.ACTIVE, reason=reason)
+            self.set_status(context, self.FREE, reason=reason)
         elif self.status == self.WARNING:
             prior_notify_time = cfg.CONF.scheduler.prior_notify_time * 3600
             rest_usage = prior_notify_time * self.rate
             if self.balance > rest_usage:
                 reason = _("Status change from warning to active because "
                            "of recharge.")
-                self.set_status(self.ACTIVE, reason=reason)
+                self.set_status(context, self.ACTIVE, reason=reason)
         event_mod.record(context, self.id, action='recharge', value=value)
-        self.store(context)
 
     def _freeze(self, context, reason=None):
         '''Freeze user when balance overdraft.'''
