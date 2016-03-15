@@ -35,19 +35,12 @@ if [[ -z $SERVICE_ID ]]; then
   exit
 fi
 
-#openstack endpoint create \
-#  --adminurl "http://$HOST:$PORT/v1/\$(project_id)s" \
-#  --publicurl "http://$HOST:$PORT/v1/\$(project_id)s" \
-#  --internalurl "http://$HOST:$PORT/v1/\$(project_id)s" \
-#  --region RegionOne \
-#  bilean
-
-openstack endpoint create bilean admin \
-  "http://$HOST:$PORT/v1/\$(project_id)s" --region RegionOne
-openstack endpoint create bilean public \
-  "http://$HOST:$PORT/v1/\$(project_id)s" --region RegionOne
-openstack endpoint create bilean internal \
-  "http://$HOST:$PORT/v1/\$(project_id)s" --region RegionOne
+openstack endpoint create \
+  --adminurl "http://$HOST:$PORT/v1/\$(project_id)s" \
+  --publicurl "http://$HOST:$PORT/v1/\$(project_id)s" \
+  --internalurl "http://$HOST:$PORT/v1/\$(project_id)s" \
+  --region RegionOne \
+  bilean
 
 openstack user create \
   --password "$SVC_PASSWD" \
