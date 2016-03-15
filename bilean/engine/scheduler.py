@@ -83,10 +83,7 @@ class BileanScheduler(object):
 
     def init_scheduler(self):
         """Init all jobs related to the engine from db."""
-        jobs = db_api.job_get_all(self.context, engine_id=self.engine_id)
-        if not jobs:
-            LOG.info(_LI("No job related to engine '%s'."), self.engine_id)
-            return
+        jobs = db_api.job_get_all(self.context, engine_id=self.engine_id) or []
         for job in jobs:
             if self.is_exist(job.id):
                 continue
@@ -97,6 +94,14 @@ class BileanScheduler(object):
             tg_type = self.CRON if job.job_type == self.DAILY else self.DAILY
             self.add_job(task, job.id, trigger_type=tg_type,
                          params=job.parameters)
+
+        # Init daily job for all users
+        users = user_mod.User.load_all(self.context)
+        for user in users:
+            job_id = self._generate_job_id(user.id, self.DAILY)
+            if self.is_exist(job_id):
+                continue
+            self._add_daily_job(user)
 
     def add_job(self, task, job_id, trigger_type='date', **kwargs):
         """Add a job to scheduler by given data.
@@ -182,8 +187,8 @@ class BileanScheduler(object):
                 self.context, self._generate_job_id(user.id, 'notify'))
         except exception.NotFound as e:
             LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
-        self._add_freeze_job(user)
         user.set_status(self.context, user.WARNING, reason)
+        self.update_user_job(user)
 
     def _daily_task(self, user_id):
         user = user_mod.User.load(self.context, user_id=user_id)
@@ -194,6 +199,7 @@ class BileanScheduler(object):
                 self.context, self._generate_job_id(user.id, 'daily'))
         except exception.NotFound as e:
             LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
+        self.update_user_job(user)
 
     def _freeze_task(self, user_id):
         user = user_mod.User.load(self.context, user_id=user_id)
@@ -204,6 +210,7 @@ class BileanScheduler(object):
                 self.context, self._generate_job_id(user.id, 'freeze'))
         except exception.NotFound as e:
             LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
+        self.update_user_job(user)
 
     def _add_notify_job(self, user):
         if not user.rate:
@@ -253,39 +260,33 @@ class BileanScheduler(object):
         db_api.job_create(self.context, job)
         return True
 
-    def _delete_all_job(self, user):
-        for job_type in self.job_types:
-            job_id = self._generate_job_id(user.id, job_type)
-            if self.is_exist(job_id):
-                self.remove_job(job_id)
-            try:
-                db_api.job_delete(self.context, job_id)
-            except exception.NotFound as e:
-                LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
-
     def update_user_job(self, user):
         """Update user's billing job"""
-        if user.status not in [user.ACTIVE, user.WARNING]:
-            self._delete_all_job(user)
-            return
-
+        # Delete all jobs except daily job
         for job_type in self.NOTIFY, self.FREEZE:
             job_id = self._generate_job_id(user.id, job_type)
-            if self.is_exist(job_id):
-                self.remove_job(job_id)
             try:
-                db_api.job_delete(self.context, job_id)
-            except exception.NotFound as e:
+                if self.is_exist(job_id):
+                    self.remove_job(job_id)
+                    db_api.job_delete(self.context, job_id)
+            except Exception as e:
                 LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
-
-        daily_job_id = self._generate_job_id(user.id, self.DAILY)
-        if not self.is_exist(daily_job_id):
-            self._add_daily_job(user)
 
         if user.status == user.ACTIVE:
             self._add_notify_job(user)
-        else:
+        elif user.status == user.WARNING:
             self._add_freeze_job(user)
+
+    def delete_user_jobs(self, user):
+        """Delete all jobs related the specific user."""
+        for job_type in self.job_types:
+            job_id = self._generate_job_id(user.id, job_type)
+            try:
+                if self.is_exist(job_id):
+                    self.remove_job(job_id)
+                    db_api.job_delete(self.context, job_id)
+            except Exception as e:
+                LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
 
     def _generate_timer(self):
         """Generate a random timer include hour and minute."""

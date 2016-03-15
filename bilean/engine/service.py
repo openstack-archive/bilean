@@ -165,7 +165,12 @@ class EngineService(service.Service):
     def user_delete(self, cnxt, user_id):
         """Delete a specify user according to the notification."""
         LOG.info(_LI('Deleging user: %s'), user_id)
+        user = user_mod.User.load(cnxt, user_id=user_id)
+        if user.status in [user.ACTIVE, user.WARNING]:
+            LOG.error(_LE("User (%s) is in use, can not delete."), user_id)
+            return
         user_mod.User.delete(cnxt, user_id=user_id)
+        self.scheduler.delete_user_jobs(user)
 
     @request_context
     def user_attach_policy(self, cnxt, user_id, policy_id):
