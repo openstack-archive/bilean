@@ -172,7 +172,8 @@ class BileanScheduler(object):
 
     def _notify_task(self, user_id):
         user = user_mod.User.load(self.context, user_id=user_id)
-        msg = {'user': user.id, 'notification': 'The balance is almost use up'}
+        reason = "The balance is almost use up"
+        msg = {'user': user.id, 'notification': reason}
         self.notifier.info('billing.notify', msg)
         if user.status != user.FREEZE and user.rate > 0:
             user.do_bill(self.context)
@@ -182,6 +183,7 @@ class BileanScheduler(object):
         except exception.NotFound as e:
             LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
         self._add_freeze_job(user)
+        user.set_status(self.context, user.WARNING, reason)
 
     def _daily_task(self, user_id):
         user = user_mod.User.load(self.context, user_id=user_id)
@@ -264,7 +266,7 @@ class BileanScheduler(object):
     def update_user_job(self, user):
         """Update user's billing job"""
         if user.status not in [user.ACTIVE, user.WARNING]:
-            self._delete_all_job(user.id)
+            self._delete_all_job(user)
             return
 
         for job_type in self.NOTIFY, self.FREEZE:
