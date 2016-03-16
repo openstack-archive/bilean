@@ -74,16 +74,15 @@ class BileanScheduler(object):
         self._scheduler = BackgroundScheduler()
         self.notifier = notifier.Notifier()
         self.engine_id = kwargs.get('engine_id', None)
-        self.context = kwargs.get('context', None)
-        if not self.context:
-            self.context = bilean_context.get_admin_context()
         if cfg.CONF.scheduler.store_ap_job:
             self._scheduler.add_jobstore(cfg.CONF.scheduler.backend,
                                          url=cfg.CONF.scheduler.connection)
 
     def init_scheduler(self):
         """Init all jobs related to the engine from db."""
-        jobs = db_api.job_get_all(self.context, engine_id=self.engine_id) or []
+        admin_context = bilean_context.get_admin_context()
+        jobs = [] or db_api.job_get_all(admin_context,
+                                        engine_id=self.engine_id)
         for job in jobs:
             if self.is_exist(job.id):
                 continue
@@ -96,7 +95,7 @@ class BileanScheduler(object):
                          params=job.parameters)
 
         # Init daily job for all users
-        users = user_mod.User.load_all(self.context)
+        users = user_mod.User.load_all(admin_context)
         for user in users:
             job_id = self._generate_job_id(user.id, self.DAILY)
             if self.is_exist(job_id):
@@ -176,38 +175,41 @@ class BileanScheduler(object):
         return job is not None
 
     def _notify_task(self, user_id):
-        user = user_mod.User.load(self.context, user_id=user_id)
+        admin_context = bilean_context.get_admin_context()
+        user = user_mod.User.load(admin_context, user_id=user_id)
         reason = "The balance is almost use up"
         msg = {'user': user.id, 'notification': reason}
         self.notifier.info('billing.notify', msg)
         if user.status != user.FREEZE and user.rate > 0:
-            user.do_bill(self.context)
+            user.do_bill(admin_context)
         try:
             db_api.job_delete(
-                self.context, self._generate_job_id(user.id, 'notify'))
+                admin_context, self._generate_job_id(user.id, 'notify'))
         except exception.NotFound as e:
             LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
-        user.set_status(self.context, user.WARNING, reason)
+        user.set_status(admin_context, user.WARNING, reason)
         self.update_user_job(user)
 
     def _daily_task(self, user_id):
-        user = user_mod.User.load(self.context, user_id=user_id)
+        admin_context = bilean_context.get_admin_context()
+        user = user_mod.User.load(admin_context, user_id=user_id)
         if user.status != user.FREEZE and user.rate > 0:
-            user.do_bill(self.context)
+            user.do_bill(admin_context)
         try:
             db_api.job_delete(
-                self.context, self._generate_job_id(user.id, 'daily'))
+                admin_context, self._generate_job_id(user.id, 'daily'))
         except exception.NotFound as e:
             LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
         self.update_user_job(user)
 
     def _freeze_task(self, user_id):
-        user = user_mod.User.load(self.context, user_id=user_id)
+        admin_context = bilean_context.get_admin_context()
+        user = user_mod.User.load(admin_context, user_id=user_id)
         if user.status != user.FREEZE and user.rate > 0:
-            user.do_bill(self.context)
+            user.do_bill(admin_context)
         try:
             db_api.job_delete(
-                self.context, self._generate_job_id(user.id, 'freeze'))
+                admin_context, self._generate_job_id(user.id, 'freeze'))
         except exception.NotFound as e:
             LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
         self.update_user_job(user)
@@ -228,7 +230,8 @@ class BileanScheduler(object):
                'job_type': self.NOTIFY,
                'engine_id': self.engine_id,
                'parameters': {'run_date': utils.format_time(run_date)}}
-        db_api.job_create(self.context, job)
+        admin_context = bilean_context.get_admin_context()
+        db_api.job_create(admin_context, job)
 
     def _add_freeze_job(self, user):
         if not user.rate:
@@ -243,7 +246,8 @@ class BileanScheduler(object):
                'job_type': self.FREEZE,
                'engine_id': self.engine_id,
                'parameters': {'run_date': utils.format_time(run_date)}}
-        db_api.job_create(self.context, job)
+        admin_context = bilean_context.get_admin_context()
+        db_api.job_create(admin_context, job)
         return True
 
     def _add_daily_job(self, user):
@@ -257,18 +261,20 @@ class BileanScheduler(object):
                'job_type': self.DAILY,
                'engine_id': self.engine_id,
                'parameters': job_params}
-        db_api.job_create(self.context, job)
+        admin_context = bilean_context.get_admin_context()
+        db_api.job_create(admin_context, job)
         return True
 
     def update_user_job(self, user):
         """Update user's billing job"""
         # Delete all jobs except daily job
+        admin_context = bilean_context.get_admin_context()
         for job_type in self.NOTIFY, self.FREEZE:
             job_id = self._generate_job_id(user.id, job_type)
             try:
                 if self.is_exist(job_id):
                     self.remove_job(job_id)
-                    db_api.job_delete(self.context, job_id)
+                    db_api.job_delete(admin_context, job_id)
             except Exception as e:
                 LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
 
@@ -279,12 +285,13 @@ class BileanScheduler(object):
 
     def delete_user_jobs(self, user):
         """Delete all jobs related the specific user."""
+        admin_context = bilean_context.get_admin_context()
         for job_type in self.job_types:
             job_id = self._generate_job_id(user.id, job_type)
             try:
                 if self.is_exist(job_id):
                     self.remove_job(job_id)
-                    db_api.job_delete(self.context, job_id)
+                    db_api.job_delete(admin_context, job_id)
             except Exception as e:
                 LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
 

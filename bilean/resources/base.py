@@ -14,6 +14,7 @@
 from bilean.common import exception
 from bilean.common import utils
 from bilean.db import api as db_api
+from bilean.engine import environment
 
 
 class Resource(object):
@@ -23,6 +24,15 @@ class Resource(object):
     cinder, neutron and so on, it can be an instance or volume or
     something else.
     """
+
+    def __new__(cls, id, user_id, res_type, properties, **kwargs):
+        """Create a new resource of the appropriate class."""
+        if cls != Resource:
+            ResourceClass = cls
+        else:
+            ResourceClass = environment.global_env().get_resource(res_type)
+
+        return super(Resource, cls).__new__(ResourceClass)
 
     def __init__(self, id, user_id, resource_type, properties, **kwargs):
         self.id = id
@@ -61,6 +71,10 @@ class Resource(object):
 
         return self.id
 
+    def delete(self, context):
+        '''Delete resource from db.'''
+        db_api.resource_delete(context, self.id)
+
     @classmethod
     def _from_db_record(cls, record):
         '''Construct a resource object from database record.
@@ -95,7 +109,7 @@ class Resource(object):
     def load_all(cls, context, user_id=None, show_deleted=False,
                  limit=None, marker=None, sort_keys=None, sort_dir=None,
                  filters=None, project_safe=True):
-        '''Retrieve all users of from database.'''
+        '''Retrieve all users from database.'''
 
         records = db_api.resource_get_all(context, user_id=user_id,
                                           show_deleted=show_deleted,
@@ -121,14 +135,17 @@ class Resource(object):
         }
         return resource_dict
 
-    def do_delete(self, context, resource_id):
-        db_api.resource_delete(context, resource_id)
+    @classmethod
+    def do_check(cls, context, user):
+        '''Communicate with other services and check user's resources.
 
-    def resource_delete_by_physical_resource_id(self, context,
-                                                physical_resource_id,
-                                                resource_type):
-        db_api.resource_delete_by_physical_resource_id(
-            context, physical_resource_id, resource_type)
+        This would be a period job of user to check if there are any missing
+        actions, and then make correction.
+        '''
 
-    def resource_delete_by_user_id(self, context, user_id):
-        db_api.resource_delete(context, user_id)
+        return NotImplemented
+
+    def do_delete(self, ignore_missing=True, timeout=None):
+        '''Delete resource from other services.'''
+
+        return NotImplemented

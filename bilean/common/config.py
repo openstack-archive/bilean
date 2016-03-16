@@ -47,6 +47,15 @@ service_opts = [
                help=_('The directory to search for environment files.')),
 ]
 
+engine_opts = [
+    cfg.StrOpt('environment_dir',
+               default='/etc/bilean/environments',
+               help=_('The directory to search for environment files.')),
+    cfg.IntOpt('default_action_timeout',
+               default=3600,
+               help=_('Timeout in seconds for actions.')),
+]
+
 rpc_opts = [
     cfg.StrOpt('host',
                default=socket.gethostname(),
@@ -91,6 +100,7 @@ revision_opts = [
 
 def list_opts():
     yield None, rpc_opts
+    yield None, engine_opts
     yield None, service_opts
     yield None, cloud_backend_opts
     yield paste_deploy_group.name, paste_deploy_opts
