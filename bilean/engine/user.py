@@ -19,7 +19,7 @@ from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.drivers import base as driver_base
 from bilean.engine import event as event_mod
-from bilean.engine import resource as resource_mod
+from bilean.resources import base as resource_base
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -242,19 +242,12 @@ class User(object):
 
     def _freeze(self, context, reason=None):
         '''Freeze user when balance overdraft.'''
-        LOG.info(_("Freeze user because of: %s") % reason)
-        self._release_resource(context)
-        LOG.info(_("Balance of user %s overdraft, change user's "
-                   "status to 'freeze'") % self.id)
-        self.status = self.FREEZE
-        self.status_reason = reason
-
-    def _release_resource(self, context):
-        '''Do freeze user, delete all resources ralated to user.'''
-        filters = {'user_id': self.id}
-        resources = resource_mod.Resource.load_all(context, filters=filters)
+        LOG.info(_("Freeze user %(user_id), reason: %(reason)s"),
+                 {'user_id': self.id, 'reason': reason})
+        resources = resource_base.Resource.load_all(context, user_id=self.id)
         for resource in resources:
-            resource.do_delete(context)
+            resource.do_delete()
+        self.set_status(context, self.FREEZE, reason)
 
     def do_delete(self, context):
         db_api.user_delete(context, self.id)
@@ -266,7 +259,7 @@ class User(object):
         total_seconds = (now - self.last_bill).total_seconds()
         self.balance = self.balance - self.rate * total_seconds
         self.last_bill = now
-        if self.balance < 0:
+        if self.balance <= 0:
             self._freeze(context, reason="Balance overdraft")
         self.store(context)
         event_mod.record(context, self.id,

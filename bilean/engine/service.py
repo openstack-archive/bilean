@@ -30,9 +30,9 @@ from bilean.common import utils
 from bilean.engine import environment
 from bilean.engine import event as event_mod
 from bilean.engine import policy as policy_mod
-from bilean.engine import resource as resource_mod
 from bilean.engine import scheduler
 from bilean.engine import user as user_mod
+from bilean.resources import base as resource_base
 from bilean.rules import base as rule_base
 
 LOG = logging.getLogger(__name__)
@@ -263,9 +263,9 @@ class EngineService(service.Service):
         total_rate = 0
         for resource in resources['resources']:
             rule = policy.find_rule(cnxt, resource['resource_type'])
-            res = resource_mod.Resource('FAKE_ID', user.id,
-                                        resource['resource_type'],
-                                        resource['properties'])
+            res = resource_base.Resource('FAKE_ID', user.id,
+                                         resource['resource_type'],
+                                         resource['properties'])
             total_rate += rule.get_price(res)
         if count > 1:
             total_rate = total_rate * count
@@ -283,8 +283,8 @@ class EngineService(service.Service):
         would be done.
 
         """
-        resource = resource_mod.Resource(resource_id, user_id, resource_type,
-                                         properties)
+        resource = resource_base.Resource(resource_id, user_id, resource_type,
+                                          properties)
         # Find the exact rule of resource
         user = user_mod.User.load(self.context, user_id=user_id)
         user_policy = policy_mod.Policy.load(
@@ -314,23 +314,23 @@ class EngineService(service.Service):
         if show_deleted is not None:
             show_deleted = utils.parse_bool_param('show_deleted',
                                                   show_deleted)
-        resources = resource_mod.Resource.load_all(cnxt, user_id=user_id,
-                                                   limit=limit, marker=marker,
-                                                   sort_keys=sort_keys,
-                                                   sort_dir=sort_dir,
-                                                   filters=filters,
-                                                   project_safe=project_safe,
-                                                   show_deleted=show_deleted)
+        resources = resource_base.Resource.load_all(cnxt, user_id=user_id,
+                                                    limit=limit, marker=marker,
+                                                    sort_keys=sort_keys,
+                                                    sort_dir=sort_dir,
+                                                    filters=filters,
+                                                    project_safe=project_safe,
+                                                    show_deleted=show_deleted)
         return [r.to_dict() for r in resources]
 
     @request_context
     def resource_get(self, cnxt, resource_id):
-        resource = resource_mod.Resource.load(cnxt, resource_id=resource_id)
+        resource = resource_base.Resource.load(cnxt, resource_id=resource_id)
         return resource.to_dict()
 
     def resource_update(self, cnxt, resource):
         """Do resource update."""
-        res = resource_mod.Resource.load(
+        res = resource_base.Resource.load(
             self.context, resource_id=resource['id'])
         old_rate = res.rate
         res.properties = resource['properties']
@@ -346,16 +346,15 @@ class EngineService(service.Service):
 
     def resource_delete(self, cnxt, resource_id):
         """Do resource delete"""
-        res = resource_mod.Resource.load(
+        res = resource_base.Resource.load(
             self.context, resource_id=resource_id, project_safe=False)
+
         user = user_mod.User.load(self.context, user_id=res.user_id)
         user.update_with_resource(self.context, res, action='delete')
+
         self.scheduler.update_user_job(user)
-        try:
-            res.do_delete(self.context)
-        except Exception as ex:
-            LOG.warn(_("Delete resource error %s"), ex)
-            return
+
+        res.delete(self.context)
 
     @request_context
     def event_list(self, cnxt, user_id=None, limit=None, marker=None,
@@ -409,7 +408,7 @@ class EngineService(service.Service):
         }
         policy = policy_mod.Policy(name, **kwargs)
         policy.store(cnxt)
-        LOG.info(_LI("Policy is created: %(id)s."), policy.id)
+        LOG.info(_LI("Successfully create policy (%s)."), policy.id)
         return policy.to_dict()
 
     @request_context

@@ -17,7 +17,7 @@ from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common import utils
 from bilean.db import api as db_api
-from bilean.engine import resource as resource_mod
+from bilean.resources import base as resource_base
 
 from oslo_log import log as logging
 from oslo_utils import timeutils
@@ -123,7 +123,7 @@ def record(context, user_id, action=None, seconds=0, value=0):
     """
     try:
         if action == 'charge':
-            resources = resource_mod.Resource.load_all(
+            resources = resource_base.Resource.load_all(
                 context, user_id=user_id, project_safe=False)
             for resource in resources:
                 usage = resource.rate * seconds

@@ -39,7 +39,7 @@ def global_env():
 
 
 class Environment(object):
-    '''An object that contains all rules, policies and customizations.'''
+    '''An object that contains all rules, resources and customizations.'''
 
     SECTIONS = (
         PARAMETERS, CUSTOM_RULES,
@@ -57,9 +57,12 @@ class Environment(object):
         if is_global:
             self.rule_registry = registry.Registry('rules')
             self.driver_registry = registry.Registry('drivers')
+            self.resource_registry = registry.Registry('resources')
         else:
             self.rule_registry = registry.Registry(
                 'rules', global_env().rule_registry)
+            self.resource_registry = registry.Registry(
+                'resources', global_env().resource_registry)
             self.driver_registry = registry.Registry(
                 'drivers', global_env().driver_registry)
 
@@ -117,6 +120,20 @@ class Environment(object):
 
     def get_rule_types(self):
         return self.rule_registry.get_types()
+
+    def register_resource(self, name, plugin):
+        self._check_plugin_name('Resource', name)
+        self.resource_registry.register_plugin(name, plugin)
+
+    def get_resource(self, name):
+        self._check_plugin_name('Resource', name)
+        plugin = self.resource_registry.get_plugin(name)
+        if plugin is None:
+            raise exception.ResourceTypeNotFound(resource_type=name)
+        return plugin
+
+    def get_resource_types(self):
+        return self.resource_registry.get_types()
 
     def register_driver(self, name, plugin):
         self._check_plugin_name('Driver', name)
@@ -180,12 +197,13 @@ def initialize():
     for name, plugin in entries:
         env.register_rule(name, plugin)
 
-    try:
-        entries = _get_mapping('bilean.drivers')
-        for name, plugin in entries:
-            env.register_driver(name, plugin)
-    except Exception:
-        pass
+    entries = _get_mapping('bilean.resources')
+    for name, plugin in entries:
+        env.register_resource(name, plugin)
+
+    entries = _get_mapping('bilean.drivers')
+    for name, plugin in entries:
+        env.register_driver(name, plugin)
 
     env.read_global_environment()
     _environment = env
