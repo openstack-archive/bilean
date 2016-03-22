@@ -41,6 +41,7 @@ def db_version(engine):
     return IMPL.db_version(engine)
 
 
+# users
 def user_get(context, user_id, show_deleted=False, project_safe=True):
     return IMPL.user_get(context, user_id,
                          show_deleted=show_deleted,
@@ -68,6 +69,7 @@ def user_get_all(context, show_deleted=False, limit=None,
                              filters=filters)
 
 
+# rules
 def rule_get(context, rule_id, show_deleted=False):
     return IMPL.rule_get(context, rule_id, show_deleted=False)
 
@@ -93,6 +95,7 @@ def rule_delete(context, rule_id):
     return IMPL.rule_delete(context, rule_id)
 
 
+# resources
 def resource_get(context, resource_id, show_deleted=False, project_safe=True):
     return IMPL.resource_get(context, resource_id,
                              show_deleted=show_deleted,
@@ -121,6 +124,7 @@ def resource_delete(context, resource_id):
     IMPL.resource_delete(context, resource_id)
 
 
+# events
 def event_get(context, event_id, project_safe=True):
     return IMPL.event_get(context, event_id, project_safe=project_safe)
 
@@ -145,6 +149,7 @@ def event_delete(context, event_id):
     return IMPL.event_delete(context, event_id)
 
 
+# jobs
 def job_create(context, values):
     return IMPL.job_create(context, values)
 
@@ -157,6 +162,7 @@ def job_delete(context, job_id):
     return IMPL.job_delete(context, job_id)
 
 
+# policies
 def policy_get(context, policy_id, show_deleted=False):
     return IMPL.policy_get(context, policy_id, show_deleted=False)
 
@@ -178,3 +184,12 @@ def policy_update(context, policy_id, values):
 
 def policy_delete(context, policy_id):
     return IMPL.policy_delete(context, policy_id)
+
+
+# locks
+def user_lock_acquire(user_id, engine_id):
+    return IMPL.user_lock_acquire(user_id, engine_id)
+
+
+def user_lock_release(user_id, engine_id=None):
+    return IMPL.user_lock_release(user_id, engine_id=engine_id)

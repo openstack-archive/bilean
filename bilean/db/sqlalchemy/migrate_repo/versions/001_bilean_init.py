@@ -109,12 +109,22 @@ def upgrade(migrate_engine):
         mysql_charset='utf8'
     )
 
+    user_lock = sqlalchemy.Table(
+        'user_lock', meta,
+        sqlalchemy.Column('user_id', sqlalchemy.String(36),
+                          primary_key=True, nullable=False),
+        sqlalchemy.Column('engine_id', sqlalchemy.String(36)),
+        mysql_engine='InnoDB',
+        mysql_charset='utf8'
+    )
+
     tables = (
         policy,
         user,
         rule,
         resource,
         event,
+        user_lock,
     )
 
     for index, table in enumerate(tables):

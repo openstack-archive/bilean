@@ -15,6 +15,7 @@ import six
 
 from bilean.common import exception
 from bilean.common.i18n import _
+from bilean.common.i18n import _LI
 from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.drivers import base as driver_base
@@ -187,18 +188,19 @@ class User(object):
             self.status_reason = reason
         self.store(context)
 
-    def update_with_resource(self, context, resource, action='create'):
+    def update_with_resource(self, context, resource, do_bill=True,
+                             action='create'):
         '''Update user with resource'''
+        if do_bill:
+            self.do_bill(context)
+
         if 'create' == action:
             d_rate = resource.rate
-            if self.rate > 0:
-                self.do_bill(context)
         elif 'delete' == action:
-            self.do_bill(context)
             d_rate = -resource.rate
         elif 'update' == action:
-            self.do_bill(context)
             d_rate = resource.d_rate
+
         self._change_user_rate(context, d_rate)
         self.store(context)
 
@@ -211,13 +213,16 @@ class User(object):
         if d_rate > 0 and self.status == self.FREE:
             self.status = self.ACTIVE
         elif d_rate < 0:
-            if new_rate == 0 and self.balance > 0:
+            if new_rate == 0 and self.balance >= 0:
                 self.status = self.FREE
+            elif new_rate == 0 and self.balance < 0:
+                self.status = self.FREEZE
             elif self.status == self.WARNING:
-                p_time = cfg.CONF.scheduler.prior_notify_time * 3600
-                rest_usage = p_time * new_rate
-                if self.balance > rest_usage:
+                if not self.notify_or_not():
+                    reason = _("Status change from 'warning' to 'active' "
+                               "because of resource deleting.")
                     self.status = self.ACTIVE
+                    self.status_reason = reason
         self.rate = new_rate
 
     def do_recharge(self, context, value):
@@ -232,23 +237,19 @@ class User(object):
                        "of recharge.")
             self.set_status(context, self.FREE, reason=reason)
         elif self.status == self.WARNING:
-            prior_notify_time = cfg.CONF.scheduler.prior_notify_time * 3600
-            rest_usage = prior_notify_time * self.rate
-            if self.balance > rest_usage:
-                reason = _("Status change from warning to active because "
+            if not self.notify_or_not():
+                reason = _("Status change from 'warning' to 'active' because "
                            "of recharge.")
                 self.set_status(context, self.ACTIVE, reason=reason)
         event_mod.record(context, self.id, action='recharge', value=value)
 
-    def _freeze(self, context, reason=None):
-        '''Freeze user when balance overdraft.'''
-        LOG.info(_("Freeze user %(user_id), reason: %(reason)s"),
-                 {'user_id': self.id, 'reason': reason})
-        resources = resource_base.Resource.load_all(
-            context, user_id=self.id, project_safe=False)
-        for resource in resources:
-            resource.do_delete()
-        self.set_status(context, self.FREEZE, reason)
+    def notify_or_not(self):
+        '''Check if user should be notified.'''
+        prior_notify_time = cfg.CONF.scheduler.prior_notify_time * 3600
+        rest_usage = prior_notify_time * self.rate
+        if self.balance > rest_usage:
+            return False
+        return True
 
     def do_delete(self, context):
         db_api.user_delete(context, self.id)
@@ -256,13 +257,29 @@ class User(object):
 
     def do_bill(self, context):
         '''Do bill once, pay the cost until now.'''
+        if self.status not in [self.ACTIVE, self.WARNING]:
+            LOG.info(_LI("Ignore bill action because user is in '%s' "
+                         "status."), self.status)
+            return
+
         now = timeutils.utcnow()
         total_seconds = (now - self.last_bill).total_seconds()
-        self.balance = self.balance - self.rate * total_seconds
-        self.last_bill = now
-        if self.balance <= 0:
-            self._freeze(context, reason="Balance overdraft")
-        self.store(context)
-        event_mod.record(context, self.id,
-                         action='charge',
-                         seconds=total_seconds)
+        cost = self.rate * total_seconds
+        if cost > 0:
+            self.balance -= cost
+            self.last_bill = now
+            if self.balance <= 0:
+                self._freeze(context, reason="Balance overdraft")
+            self.store(context)
+            event_mod.record(context, self.id, action='charge',
+                             seconds=total_seconds)
+
+    def _freeze(self, context, reason=None):
+        '''Freeze user when balance overdraft.'''
+        LOG.info(_LI("Freeze user %(user_id)s, reason: %(reason)s"),
+                 {'user_id': self.id, 'reason': reason})
+        resources = resource_base.Resource.load_all(
+            context, user_id=self.id, project_safe=False)
+        for resource in resources:
+            if resource.do_delete(context):
+                self._change_user_rate(context, -resource.rate)
