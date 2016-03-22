@@ -115,6 +115,7 @@ def db_version(engine):
     return migration.db_version(engine)
 
 
+#users
 def user_get(context, user_id, show_deleted=False, project_safe=True):
     query = model_query(context, models.User)
     user = query.get(user_id)
@@ -189,6 +190,7 @@ def user_get_all(context, show_deleted=False, limit=None,
                            default_sort_keys=['id']).all()
 
 
+#rules
 def rule_get(context, rule_id, show_deleted=False):
     query = model_query(context, models.Rule)
     rule = query.filter_by(id=rule_id).first()
@@ -252,6 +254,7 @@ def rule_delete(context, rule_id):
     session.flush()
 
 
+#resources
 def resource_get(context, resource_id, show_deleted=False, project_safe=True):
     query = model_query(context, models.Resource)
     resource = query.get(resource_id)
@@ -314,7 +317,7 @@ def resource_update(context, resource_id, values):
 
 
 def resource_delete(context, resource_id, soft_delete=True):
-    resource = resource_get(context, resource_id)
+    resource = resource_get(context, resource_id, project_safe=False)
 
     if resource is None:
         return
@@ -327,6 +330,7 @@ def resource_delete(context, resource_id, soft_delete=True):
     session.flush()
 
 
+#events
 def event_get(context, event_id, project_safe=True):
     query = model_query(context, models.Event)
     event = query.get(event_id)
@@ -382,6 +386,7 @@ def event_create(context, values):
     return event_ref
 
 
+#jobs
 def job_create(context, values):
     job_ref = models.Job()
     job_ref.update(values)
@@ -408,6 +413,7 @@ def job_delete(context, job_id):
     session.flush()
 
 
+#policies
 def policy_get(context, policy_id, show_deleted=False):
     query = model_query(context, models.Policy)
     policy = query.get(policy_id)
@@ -468,3 +474,44 @@ def policy_delete(context, policy_id):
     session = Session.object_session(policy)
     policy.soft_delete(session=session)
     session.flush()
+
+
+#locks
+def user_lock_acquire(user_id, engine_id):
+    '''Acquire lock on a user.
+
+    :param user_id: ID of the user.
+    :param engine_id: ID of the engine which wants to lock the user.
+    :return: A user lock if success else False.
+    '''
+    session = get_session()
+    session.begin()
+    lock = session.query(models.UserLock).get(user_id)
+    if lock is not None:
+        return False
+    else:
+        try:
+            lock = models.UserLock(user_id=user_id, engine_id=engine_id)
+            session.add(lock)
+        except Exception as ex:
+            return False
+
+    session.commit()
+    return lock
+
+
+def user_lock_release(user_id, engine_id=None):
+    '''Release lock on a user.
+
+    :param user_id: ID of the user.
+    :return: True indicates successful release, False indicates failure.
+    '''
+    session = get_session()
+    session.begin()
+    lock = session.query(models.UserLock).get(user_id)
+    if lock is None:
+        session.commit()
+        return False
+    session.delete(lock)
+    session.commit()
+    return True

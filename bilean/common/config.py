@@ -54,6 +54,12 @@ engine_opts = [
     cfg.IntOpt('default_action_timeout',
                default=3600,
                help=_('Timeout in seconds for actions.')),
+    cfg.IntOpt('lock_retry_times',
+               default=50,
+               help=_('Number of times trying to grab a lock.')),
+    cfg.IntOpt('lock_retry_interval',
+               default=1,
+               help=_('Number of seconds between lock retries.')),
 ]
 
 rpc_opts = [

@@ -17,6 +17,7 @@ from bilean.common.i18n import _
 from bilean.common.i18n import _LI
 from bilean.common import utils
 from bilean.db import api as db_api
+from bilean.engine import lock as bilean_lock
 from bilean.engine import user as user_mod
 from bilean import notifier
 
@@ -35,8 +36,8 @@ scheduler_opts = [
                help=_('The time zone of job, default is utc')),
     cfg.IntOpt('prior_notify_time',
                default=3,
-               help=_("The days notify user before user's balance is used up, "
-                      "default is 3 days.")),
+               help=_('Time in hours before notify user when the balance of '
+                      'user is almost used up.')),
     cfg.IntOpt('misfire_grace_time',
                default=3600,
                help=_('Seconds after the designated run time that the job is '
@@ -175,26 +176,40 @@ class BileanScheduler(object):
         return job is not None
 
     def _notify_task(self, user_id):
+        
+        res = bilean_lock.user_lock_acquire(user_id, self.engine_id)
+        if not res:
+            LOG.error(_LE('Failed grabbing the lock for user %s'), user_id)
+            return
+
         admin_context = bilean_context.get_admin_context()
         user = user_mod.User.load(admin_context, user_id=user_id)
-        reason = "The balance is almost use up"
-        msg = {'user': user.id, 'notification': reason}
-        self.notifier.info('billing.notify', msg)
-        if user.status != user.FREEZE and user.rate > 0:
+        if user.notify_or_not():
             user.do_bill(admin_context)
+            reason = "The balance is almost use up"
+            user.set_status(admin_context, user.WARNING, reason)
+            msg = {'user': user_id, 'notification': reason}
+            self.notifier.info('billing.notify', msg)
         try:
             db_api.job_delete(
                 admin_context, self._generate_job_id(user.id, 'notify'))
         except exception.NotFound as e:
             LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
-        user.set_status(admin_context, user.WARNING, reason)
         self.update_user_job(user)
 
+        bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
+
+
     def _daily_task(self, user_id):
+        res = bilean_lock.user_lock_acquire(user_id, self.engine_id)
+        if not res:
+            LOG.error(_LE('Failed grabbing the lock for user %s'), user_id)
+            return
+
         admin_context = bilean_context.get_admin_context()
         user = user_mod.User.load(admin_context, user_id=user_id)
-        if user.status != user.FREEZE and user.rate > 0:
-            user.do_bill(admin_context)
+        user.do_bill(admin_context)
+
         try:
             db_api.job_delete(
                 admin_context, self._generate_job_id(user.id, 'daily'))
@@ -202,17 +217,26 @@ class BileanScheduler(object):
             LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
         self.update_user_job(user)
 
+        bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
+
     def _freeze_task(self, user_id):
+        res = bilean_lock.user_lock_acquire(user_id, self.engine_id)
+        if not res:
+            LOG.error(_LE('Failed grabbing the lock for user %s'), user_id)
+            return
+
         admin_context = bilean_context.get_admin_context()
         user = user_mod.User.load(admin_context, user_id=user_id)
-        if user.status != user.FREEZE and user.rate > 0:
-            user.do_bill(admin_context)
+        user.do_bill(admin_context)
+
         try:
             db_api.job_delete(
                 admin_context, self._generate_job_id(user.id, 'freeze'))
         except exception.NotFound as e:
             LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
         self.update_user_job(user)
+
+        bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
 
     def _add_notify_job(self, user):
         if not user.rate:

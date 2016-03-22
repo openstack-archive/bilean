@@ -96,6 +96,8 @@ class Resource(object):
     def load(cls, context, resource_id=None, resource=None,
              show_deleted=False, project_safe=True):
         '''Retrieve a resource from database.'''
+        if context.is_admin:
+            project_safe = False
         if resource is None:
             resource = db_api.resource_get(context, resource_id,
                                            show_deleted=show_deleted,
@@ -145,7 +147,7 @@ class Resource(object):
 
         return NotImplemented
 
-    def do_delete(self, ignore_missing=True, timeout=None):
+    def do_delete(self, context, ignore_missing=True, timeout=None):
         '''Delete resource from other services.'''
 
         return NotImplemented

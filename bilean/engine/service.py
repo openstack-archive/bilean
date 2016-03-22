@@ -29,6 +29,7 @@ from bilean.common import schema
 from bilean.common import utils
 from bilean.engine import environment
 from bilean.engine import event as event_mod
+from bilean.engine import lock as bilean_lock
 from bilean.engine import policy as policy_mod
 from bilean.engine import scheduler
 from bilean.engine import user as user_mod
@@ -152,11 +153,19 @@ class EngineService(service.Service):
     @request_context
     def user_recharge(self, cnxt, user_id, value):
         """Do recharge for specify user."""
-        user = user_mod.User.load(cnxt, user_id=user_id)
-        user.do_recharge(cnxt, value)
-        # As user has been updated, the billing job for the user
-        # should to be updated too.
-        self.scheduler.update_user_job(user)
+        res = bilean_lock.user_lock_acquire(user_id, self.engine_id)
+        if not res:
+            LOG.error(_LE('Failed grabbing the lock for user %s'), res.user_id)
+            return False
+        try:
+            user = user_mod.User.load(cnxt, user_id=user_id)
+            user.do_recharge(cnxt, value)
+            # As user has been updated, the billing job for the user
+            # should to be updated too.
+            self.scheduler.update_user_job(user)
+        finally:
+            bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
+
         return user.to_dict()
 
     def user_delete(self, cnxt, user_id):
@@ -182,8 +191,14 @@ class EngineService(service.Service):
                                              'policy': policy_id}
             raise exception.BileanBadRequest(msg=msg)
 
+        res = bilean_lock.user_lock_acquire(user_id, self.engine_id)
+        if not res:
+            LOG.error(_LE('Failed grabbing the lock for user %s'), res.user_id)
+            return False
         user.policy_id = policy_id
         user.store(cnxt)
+        bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
+
         return user.to_dict()
 
     @request_context
@@ -294,12 +309,21 @@ class EngineService(service.Service):
         resource.rate = rule.get_price(resource)
 
         # Update user with resource
-        user.update_with_resource(admin_context, resource)
-        resource.store(admin_context)
+        res = bilean_lock.user_lock_acquire(user.id, self.engine_id)
+        if not res:
+            LOG.error(_LE('Failed grabbing the lock for user %s'), user.id)
+            return
+        try:
+            # Reload user to ensure the info is latest.
+            user = user_mod.User.load(admin_context, user_id=user_id)
+            user.update_with_resource(admin_context, resource)
+            resource.store(admin_context)
 
-        # As the rate of user has changed, the billing job for the user
-        # should change too.
-        self.scheduler.update_user_job(user)
+            # As the rate of user has changed, the billing job for the user
+            # should change too.
+            self.scheduler.update_user_job(user)
+        finally:
+            bilean_lock.user_lock_release(user.id, engine_id=self.engine_id)
 
         return resource.to_dict()
 
@@ -335,26 +359,48 @@ class EngineService(service.Service):
         res.properties = resource['properties']
         rule = rule_base.Rule.load(admin_context, rule_id=res.rule_id)
         res.rate = rule.get_price(res)
-        res.store(admin_context)
         res.d_rate = res.rate - old_rate
 
-        user = user_mod.User.load(admin_context, res.user_id)
-        user.update_with_resource(admin_context, res, action='update')
+        result = bilean_lock.user_lock_acquire(res.user_id, self.engine_id)
+        if not result:
+            LOG.error(_LE('Failed grabbing the lock for user %s'), res.user_id)
+            return False
+        try:
+            user = user_mod.User.load(admin_context, res.user_id)
+            user.update_with_resource(admin_context, res, action='update')
 
-        self.scheduler.update_user_job(user)
+            res.store(admin_context)
+
+            self.scheduler.update_user_job(user)
+        finally:
+            bilean_lock.user_lock_release(user.id, engine_id=self.engine_id)
+
+        return True
 
     def resource_delete(self, cnxt, resource_id):
         """Do resource delete"""
         admin_context = bilean_context.get_admin_context()
-        res = resource_base.Resource.load(
-            admin_context, resource_id=resource_id, project_safe=False)
+        try:
+            res = resource_base.Resource.load(
+                admin_context, resource_id=resource_id)
+        except exception.ResourceNotFound:
+            return False
 
-        user = user_mod.User.load(admin_context, user_id=res.user_id)
-        user.update_with_resource(admin_context, res, action='delete')
+        result = bilean_lock.user_lock_acquire(res.user_id, self.engine_id)
+        if not result:
+            LOG.error(_LE('Failed grabbing the lock for user %s'), res.user_id)
+            return False
+        try:
+            user = user_mod.User.load(admin_context, user_id=res.user_id)
+            user.update_with_resource(admin_context, res, action='delete')
 
-        self.scheduler.update_user_job(user)
+            self.scheduler.update_user_job(user)
 
-        res.delete(admin_context)
+            res.delete(admin_context)
+        finally:
+            bilean_lock.user_lock_release(user.id, engine_id=self.engine_id)
+
+        return True
 
     @request_context
     def event_list(self, cnxt, user_id=None, limit=None, marker=None,

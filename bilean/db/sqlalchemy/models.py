@@ -189,3 +189,13 @@ class Job(BASE, BileanBase):
     engine_id = sqlalchemy.Column(sqlalchemy.String(36))
     job_type = sqlalchemy.Column(sqlalchemy.String(10))
     parameters = sqlalchemy.Column(types.Dict())
+
+
+class UserLock(BASE, BileanBase):
+    """User locks for engines."""
+
+    __tablename__ = 'user_lock'
+
+    user_id = sqlalchemy.Column(sqlalchemy.String(36), primary_key=True,
+                                nullable=False)
+    engine_id = sqlalchemy.Column(sqlalchemy.String(36))
