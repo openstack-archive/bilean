@@ -19,6 +19,7 @@ from oslo_log import log as logging
 import oslo_messaging
 from oslo_service import service
 
+from bilean.common import consts
 from bilean.common import context as bilean_context
 from bilean.common import exception
 from bilean.common.i18n import _
@@ -31,10 +32,10 @@ from bilean.engine import environment
 from bilean.engine import event as event_mod
 from bilean.engine import lock as bilean_lock
 from bilean.engine import policy as policy_mod
-from bilean.engine import scheduler
 from bilean.engine import user as user_mod
 from bilean.resources import base as resource_base
 from bilean.rules import base as rule_base
+from bilean import scheduler as bilean_scheduler
 
 LOG = logging.getLogger(__name__)
 
@@ -63,14 +64,11 @@ class EngineService(service.Service):
     by the RPC caller.
     """
 
-    RPC_API_VERSION = '1.1'
-
     def __init__(self, host, topic, manager=None, context=None):
         super(EngineService, self).__init__()
         self.host = host
         self.topic = topic
 
-        self.scheduler = None
         self.engine_id = None
         self.target = None
         self._rpc_server = None
@@ -78,18 +76,8 @@ class EngineService(service.Service):
     def start(self):
         self.engine_id = socket.gethostname()
 
-        LOG.info(_LI("Initialise bilean users from keystone."))
-        admin_context = bilean_context.get_admin_context()
-        user_mod.User.init_users(admin_context)
-
-        self.scheduler = scheduler.BileanScheduler(engine_id=self.engine_id)
-        LOG.info(_LI("Starting billing scheduler for engine: %s"),
-                 self.engine_id)
-        self.scheduler.init_scheduler()
-        self.scheduler.start()
-
         LOG.info(_LI("Starting rpc server for engine: %s"), self.engine_id)
-        target = oslo_messaging.Target(version=self.RPC_API_VERSION,
+        target = oslo_messaging.Target(version=consts.RPC_API_VERSION,
                                        server=self.host,
                                        topic=self.topic)
         self.target = target
@@ -111,11 +99,6 @@ class EngineService(service.Service):
 
     def stop(self):
         self._stop_rpc_server()
-
-        LOG.info(_LI("Stopping billing scheduler for engine: %s"),
-                 self.engine_id)
-        self.scheduler.stop()
-
         super(EngineService, self).stop()
 
     @request_context
@@ -162,7 +145,8 @@ class EngineService(service.Service):
             user.do_recharge(cnxt, value)
             # As user has been updated, the billing job for the user
             # should to be updated too.
-            self.scheduler.update_user_job(user)
+            bilean_scheduler.notify(bilean_scheduler.UPDATE_JOBS,
+                                    user=user.to_dict())
         finally:
             bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
 
@@ -176,7 +160,8 @@ class EngineService(service.Service):
             LOG.error(_LE("User (%s) is in use, can not delete."), user_id)
             return
         user_mod.User.delete(cnxt, user_id=user_id)
-        self.scheduler.delete_user_jobs(user)
+        bilean_scheduler.notify(bilean_scheduler.DELETE_JOBS,
+                                user=user.to_dict())
 
     @request_context
     def user_attach_policy(self, cnxt, user_id, policy_id):
@@ -321,7 +306,8 @@ class EngineService(service.Service):
 
             # As the rate of user has changed, the billing job for the user
             # should change too.
-            self.scheduler.update_user_job(user)
+            bilean_scheduler.notify(bilean_scheduler.UPDATE_JOBS,
+                                    user=user.to_dict())
         finally:
             bilean_lock.user_lock_release(user.id, engine_id=self.engine_id)
 
@@ -371,7 +357,8 @@ class EngineService(service.Service):
 
             res.store(admin_context)
 
-            self.scheduler.update_user_job(user)
+            bilean_scheduler.notify(bilean_scheduler.UPDATE_JOBS,
+                                    user=user.to_dict())
         finally:
             bilean_lock.user_lock_release(user.id, engine_id=self.engine_id)
 
@@ -394,7 +381,8 @@ class EngineService(service.Service):
             user = user_mod.User.load(admin_context, user_id=res.user_id)
             user.update_with_resource(admin_context, res, action='delete')
 
-            self.scheduler.update_user_job(user)
+            bilean_scheduler.notify(bilean_scheduler.UPDATE_JOBS,
+                                    user=user.to_dict())
 
             res.delete(admin_context)
         finally:
@@ -563,3 +551,16 @@ class EngineService(service.Service):
     def policy_delete(self, cnxt, policy_id):
         LOG.info(_LI("Deleting policy: '%s'."), policy_id)
         policy_mod.Policy.delete(cnxt, policy_id)
+
+    def settle_account(self, cnxt, user_id, task=None):
+        res = bilean_lock.user_lock_acquire(user_id, self.engine_id)
+        if not res:
+            LOG.error(_LE('Failed grabbing the lock for user %s'), user_id)
+            return
+        try:
+            user = user_mod.User.load(cnxt, user_id=user_id)
+            user.settle_account(cnxt, task=task)
+        finally:
+            bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
+
+        return user.to_dict()

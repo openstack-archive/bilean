@@ -54,9 +54,9 @@ class ResourceAction(Action):
     def __init__(self, cnxt, action, data):
         super(ResourceAction, self).__init__(cnxt, action, data)
 
-        self.id = data.get('resource_ref', None)
-        self.user_id = data.get('user_id', None)
-        self.resource_type = data.get('resource_type', None)
+        self.id = data.get('resource_ref')
+        self.user_id = data.get('user_id')
+        self.resource_type = data.get('resource_type')
         self.properties = {}
         self._parse_and_validate()
 

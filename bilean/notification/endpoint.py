@@ -51,7 +51,7 @@ class EventsNotificationEndpoint(object):
 
     def process_identity_notification(self, notification):
         """Convert notification to user."""
-        user_id = notification['payload'].get('resource_info', None)
+        user_id = notification['payload'].get('resource_info')
         if not user_id:
             LOG.error(_LE("Cannot retrieve user_id from notification: %s"),
                       notification)

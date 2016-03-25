@@ -54,7 +54,7 @@ def parse_exception(ex):
         if data:
             code = data.get('code', code)
             message = data.get('message', message)
-            error = data.get('error', None)
+            error = data.get('error')
             if error:
                 code = data.get('code', code)
                 message = data['error'].get('message', message)
@@ -95,7 +95,7 @@ def create_connection(params=None):
     if params is None:
         params = {}
 
-    if params.get('token', None):
+    if params.get('token'):
         auth_plugin = 'token'
     else:
         auth_plugin = 'password'

@@ -13,24 +13,11 @@
 #    under the License.
 
 """
-Bilean Engine Server.  This does the work of actually implementing the API
-calls made by the user.  Normal communications is done via the bilean API
-which then calls into this engine.
+Bilean Engine Server.
 """
 
 import eventlet
 eventlet.monkey_patch()
-
-import os
-import sys
-
-# If ../bilean/__init__.py exists, add ../ to Python search path, so that
-# it will override what happens to be installed in /usr/(local/)lib/python...
-POSSIBLE_TOPDIR = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]),
-                                   os.pardir,
-                                   os.pardir))
-if os.path.exists(os.path.join(POSSIBLE_TOPDIR, 'bilean', '__init__.py')):
-    sys.path.insert(0, POSSIBLE_TOPDIR)
 
 from bilean.common import consts
 from bilean.common import messaging
@@ -45,7 +32,7 @@ _lazy.enable_lazy()
 LOG = logging.getLogger('bilean.engine')
 
 
-if __name__ == '__main__':
+def main():
     logging.register_options(cfg.CONF)
     cfg.CONF(project='bilean', prog='bilean-engine')
     logging.setup(cfg.CONF, 'bilean-engine')

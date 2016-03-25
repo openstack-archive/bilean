@@ -40,13 +40,13 @@ class Resource(object):
         self.resource_type = resource_type
         self.properties = properties
 
-        self.rule_id = kwargs.get('rule_id', None)
+        self.rule_id = kwargs.get('rule_id')
         self.rate = kwargs.get('rate', 0)
         self.d_rate = 0
 
-        self.created_at = kwargs.get('created_at', None)
-        self.updated_at = kwargs.get('updated_at', None)
-        self.deleted_at = kwargs.get('deleted_at', None)
+        self.created_at = kwargs.get('created_at')
+        self.updated_at = kwargs.get('updated_at')
+        self.deleted_at = kwargs.get('deleted_at')
 
     def store(self, context):
         """Store the resource record into database table."""

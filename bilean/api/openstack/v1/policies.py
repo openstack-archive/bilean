@@ -35,10 +35,10 @@ class PolicyData(object):
         return self.data[consts.POLICY_NAME]
 
     def rules(self):
-        return self.data.get(consts.POLICY_RULES, None)
+        return self.data.get(consts.POLICY_RULES)
 
     def metadata(self):
-        return self.data.get(consts.RULE_METADATA, None)
+        return self.data.get(consts.RULE_METADATA)
 
 
 class PolicyController(object):
@@ -106,7 +106,7 @@ class PolicyController(object):
         if not validator.is_valid_body(body):
             raise exc.HTTPUnprocessableEntity()
 
-        policy_data = body.get('policy', None)
+        policy_data = body.get('policy')
         if policy_data is None:
             raise exc.HTTPBadRequest(_("Malformed request data, missing "
                                        "'policy' key in request body."))
@@ -123,14 +123,14 @@ class PolicyController(object):
         if not validator.is_valid_body(body):
             raise exc.HTTPUnprocessableEntity()
 
-        policy_data = body.get('policy', None)
+        policy_data = body.get('policy')
         if policy_data is None:
             raise exc.HTTPBadRequest(_("Malformed request data, missing "
                                        "'policy' key in request body."))
 
-        name = policy_data.get(consts.POLICY_NAME, None)
-        metadata = policy_data.get(consts.POLICY_METADATA, None)
-        is_default = policy_data.get(consts.POLICY_IS_DEFAULT, None)
+        name = policy_data.get(consts.POLICY_NAME)
+        metadata = policy_data.get(consts.POLICY_METADATA)
+        is_default = policy_data.get(consts.POLICY_IS_DEFAULT)
 
         policy = self.rpc_client.policy_update(req.context, policy_id, name,
                                                metadata, is_default)

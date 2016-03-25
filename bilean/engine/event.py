@@ -30,9 +30,9 @@ class Event(object):
 
     def __init__(self, timestamp, **kwargs):
         self.timestamp = timestamp
-        self.user_id = kwargs.get('user_id', None)
-        self.action = kwargs.get('action', None)
-        self.resource_type = kwargs.get('resource_type', None)
+        self.user_id = kwargs.get('user_id')
+        self.action = kwargs.get('action')
+        self.resource_type = kwargs.get('resource_type')
         self.value = kwargs.get('value', 0)
 
     @classmethod
@@ -82,6 +82,7 @@ class Event(object):
     def store(self, context):
         '''Store the event into database and return its ID.'''
         values = {
+            'timestamp': self.timestamp,
             'user_id': self.user_id,
             'action': self.action,
             'resource_type': self.resource_type,
@@ -125,13 +126,21 @@ def record(context, user_id, action=None, seconds=0, value=0):
         if action == 'charge':
             resources = resource_base.Resource.load_all(
                 context, user_id=user_id, project_safe=False)
+
+            res_mapping = {}
             for resource in resources:
                 usage = resource.rate * seconds
+                if res_mapping.get(resource.resource_type) is None:
+                    res_mapping[resource.resource_type] = usage
+                else:
+                    res_mapping[resource.resource_type] += usage
+
+            for res_type in res_mapping.keys():
                 event = Event(timeutils.utcnow(),
                               user_id=user_id,
                               action=action,
-                              resource_type=resource.resource_type,
-                              value=usage)
+                              resource_type=res_type,
+                              value=res_mapping.get(res_type))
                 event.store(context)
         elif action == 'recharge':
             event = Event(timeutils.utcnow(),

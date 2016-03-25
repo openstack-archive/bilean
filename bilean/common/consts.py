@@ -19,14 +19,14 @@ MAX_RESOURCE_NUM = 1000
 
 RPC_ATTRs = (
     ENGINE_TOPIC,
-    ENGINE_HEALTH_MGR_TOPIC,
+    SCHEDULER_TOPIC,
     NOTIFICATION_TOPICS,
     RPC_API_VERSION,
 ) = (
     'bilean-engine',
-    'engine-health_mgr',
+    'bilean-scheduler',
     'billing_notifications',
-    '1.0',
+    '1.1',
 )
 
 RPC_PARAMS = (

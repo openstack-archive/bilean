@@ -20,6 +20,7 @@ from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.drivers import base as driver_base
 from bilean.engine import event as event_mod
+from bilean import notifier as bilean_notifier
 from bilean.resources import base as resource_base
 
 from oslo_config import cfg
@@ -40,18 +41,18 @@ class User(object):
 
     def __init__(self, user_id, **kwargs):
         self.id = user_id
-        self.policy_id = kwargs.get('policy_id', None)
+        self.policy_id = kwargs.get('policy_id')
         self.balance = kwargs.get('balance', 0)
         self.rate = kwargs.get('rate', 0.0)
         self.credit = kwargs.get('credit', 0)
-        self.last_bill = kwargs.get('last_bill', None)
+        self.last_bill = kwargs.get('last_bill')
 
         self.status = kwargs.get('status', self.INIT)
         self.status_reason = kwargs.get('status_reason', 'Init user')
 
-        self.created_at = kwargs.get('created_at', None)
-        self.updated_at = kwargs.get('updated_at', None)
-        self.deleted_at = kwargs.get('deleted_at', None)
+        self.created_at = kwargs.get('created_at')
+        self.updated_at = kwargs.get('updated_at')
+        self.deleted_at = kwargs.get('deleted_at')
 
     def store(self, context):
         """Store the user record into database table."""
@@ -97,7 +98,8 @@ class User(object):
                 user = cls(pid, status=cls.INIT,
                            status_reason='Init from keystone')
                 user.store(context)
-        return True
+                users.append(user)
+        return users
 
     @classmethod
     def _from_db_record(cls, record):
@@ -165,6 +167,10 @@ class User(object):
             return True
         return False
 
+    @classmethod
+    def from_dict(cls, values):
+        return cls(values.get('id'), **values)
+
     def to_dict(self):
         user_dict = {
             'id': self.id,
@@ -188,11 +194,9 @@ class User(object):
             self.status_reason = reason
         self.store(context)
 
-    def update_with_resource(self, context, resource, do_bill=True,
-                             action='create'):
+    def update_with_resource(self, context, resource, action='create'):
         '''Update user with resource'''
-        if do_bill:
-            self.do_bill(context)
+        self._settle_account(context)
 
         if 'create' == action:
             d_rate = resource.rate
@@ -217,6 +221,7 @@ class User(object):
                 self.status = self.FREE
             elif new_rate == 0 and self.balance < 0:
                 self.status = self.FREEZE
+                self.satus_reason = "Balance overdraft"
             elif self.status == self.WARNING:
                 if not self.notify_or_not():
                     reason = _("Status change from 'warning' to 'active' "
@@ -228,23 +233,32 @@ class User(object):
     def do_recharge(self, context, value):
         '''Do recharge for user.'''
         if self.rate > 0 and self.status != self.FREEZE:
-            self.do_bill(context)
+            self._settle_account(context)
         self.balance += value
+
         if self.status == self.INIT and self.balance > 0:
-            self.set_status(context, self.FREE, reason='Recharged')
+            self.status = self.FREE
+            self.status_reason = "Recharged"
         elif self.status == self.FREEZE and self.balance > 0:
             reason = _("Status change from 'freeze' to 'free' because "
                        "of recharge.")
-            self.set_status(context, self.FREE, reason=reason)
+            self.status = self.FREE
+            self.status_reason = reason
         elif self.status == self.WARNING:
             if not self.notify_or_not():
                 reason = _("Status change from 'warning' to 'active' because "
                            "of recharge.")
-                self.set_status(context, self.ACTIVE, reason=reason)
+                self.status = self.ACTIVE
+                self.status_reason = reason
+
+        self.store(context)
         event_mod.record(context, self.id, action='recharge', value=value)
 
     def notify_or_not(self):
         '''Check if user should be notified.'''
+        cfg.CONF.import_opt('prior_notify_time',
+                            'bilean.scheduler.cron_scheduler',
+                            group='scheduler')
         prior_notify_time = cfg.CONF.scheduler.prior_notify_time * 3600
         rest_usage = prior_notify_time * self.rate
         if self.balance > rest_usage:
@@ -255,10 +269,9 @@ class User(object):
         db_api.user_delete(context, self.id)
         return True
 
-    def do_bill(self, context):
-        '''Do bill once, pay the cost until now.'''
+    def _settle_account(self, context):
         if self.status not in [self.ACTIVE, self.WARNING]:
-            LOG.info(_LI("Ignore bill action because user is in '%s' "
+            LOG.info(_LI("Ignore settlement action because user is in '%s' "
                          "status."), self.status)
             return
 
@@ -268,9 +281,6 @@ class User(object):
         if cost > 0:
             self.balance -= cost
             self.last_bill = now
-            if self.balance <= 0:
-                self._freeze(context, reason="Balance overdraft")
-            self.store(context)
             event_mod.record(context, self.id, action='charge',
                              seconds=total_seconds)
 
@@ -283,3 +293,21 @@ class User(object):
         for resource in resources:
             if resource.do_delete(context):
                 self._change_user_rate(context, -resource.rate)
+
+    def settle_account(self, context, task=None):
+        '''Settle account for user.'''
+        notifier = bilean_notifier.Notifier()
+        self._settle_account(context)
+
+        if task == 'notify' and self.notify_or_not():
+            self.status_reason = "The balance is almost used up"
+            self.status = self.WARNING
+            # Notify user
+            msg = {'user': self.id, 'notification': self.status_reason}
+            notifier.info('billing.notify', msg)
+        elif task == 'freeze' and self.balance <= 0:
+            self._freeze(context, reason="Balance overdraft")
+            msg = {'user': self.id, 'notification': self.status_reason}
+            notifier.info('billing.notify', msg)
+
+        self.store(context)

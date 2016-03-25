@@ -14,13 +14,11 @@
 from bilean.common import context as bilean_context
 from bilean.common import exception
 from bilean.common.i18n import _
-from bilean.common.i18n import _LE
 from bilean.common.i18n import _LI
 from bilean.common import utils
 from bilean.db import api as db_api
-from bilean.engine import lock as bilean_lock
 from bilean.engine import user as user_mod
-from bilean import notifier
+from bilean.rpc import client as rpc_client
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -61,8 +59,8 @@ cfg.CONF.register_opts(scheduler_opts, group=scheduler_group)
 LOG = logging.getLogger(__name__)
 
 
-class BileanScheduler(object):
-    """Billing scheduler based on apscheduler"""
+class CronScheduler(object):
+    """Cron scheduler based on apscheduler"""
 
     job_types = (
         NOTIFY, DAILY, FREEZE,
@@ -72,39 +70,50 @@ class BileanScheduler(object):
     trigger_types = (DATE, CRON) = ('date', 'cron')
 
     def __init__(self, **kwargs):
-        super(BileanScheduler, self).__init__()
+        super(CronScheduler, self).__init__()
         self._scheduler = BackgroundScheduler()
-        self.notifier = notifier.Notifier()
-        self.engine_id = kwargs.get('engine_id', None)
+        self.scheduler_id = kwargs.get('scheduler_id')
+        self.rpc_client = rpc_client.EngineClient()
         if cfg.CONF.scheduler.store_ap_job:
             self._scheduler.add_jobstore(cfg.CONF.scheduler.backend,
                                          url=cfg.CONF.scheduler.connection)
+
+    def start(self):
+        LOG.info(_('Starting Cron scheduler'))
+        self._scheduler.start()
+
+    def stop(self):
+        LOG.info(_('Stopping Cron scheduler'))
+        self._scheduler.shutdown()
 
     def init_scheduler(self):
         """Init all jobs related to the engine from db."""
         admin_context = bilean_context.get_admin_context()
         jobs = [] or db_api.job_get_all(admin_context,
-                                        engine_id=self.engine_id)
+                                        scheduler_id=self.scheduler_id)
         for job in jobs:
-            if self.is_exist(job.id):
+            if self._is_exist(job.id):
                 continue
             task_name = "_%s_task" % (job.job_type)
             task = getattr(self, task_name)
-            LOG.info(_LI("Add job '%(job_id)s' to engine '%(engine_id)s'."),
-                     {'job_id': job.id, 'engine_id': self.engine_id})
+            LOG.info(_LI("Add job '%(job_id)s' to scheduler '%(id)s'."),
+                     {'job_id': job.id, 'id': self.scheduler_id})
             tg_type = self.CRON if job.job_type == self.DAILY else self.DAILY
-            self.add_job(task, job.id, trigger_type=tg_type,
-                         params=job.parameters)
+            self._add_job(task, job.id, trigger_type=tg_type,
+                          params=job.parameters)
+
+        LOG.info(_LI("Initialise users from keystone."))
+        users = user_mod.User.init_users(admin_context)
 
         # Init daily job for all users
-        users = user_mod.User.load_all(admin_context)
-        for user in users:
-            job_id = self._generate_job_id(user.id, self.DAILY)
-            if self.is_exist(job_id):
-                continue
-            self._add_daily_job(user)
+        if users:
+            for user in users:
+                job_id = self._generate_job_id(user.id, self.DAILY)
+                if self._is_exist(job_id):
+                    continue
+                self._add_daily_job(user)
 
-    def add_job(self, task, job_id, trigger_type='date', **kwargs):
+    def _add_job(self, task, job_id, trigger_type='date', **kwargs):
         """Add a job to scheduler by given data.
 
         :param str|unicode user_id: used as job_id
@@ -128,8 +137,8 @@ class BileanScheduler(object):
             return
 
         # Add a cron type job
-        hour = kwargs.get('hour', None)
-        minute = kwargs.get('minute', None)
+        hour = kwargs.get('hour')
+        minute = kwargs.get('minute')
         if not hour or not minute:
             hour, minute = self._generate_timer()
         self._scheduler.add_job(task, 'cron',
@@ -140,7 +149,7 @@ class BileanScheduler(object):
                                 id=job_id,
                                 misfire_grace_time=mg_time)
 
-    def modify_job(self, job_id, **changes):
+    def _modify_job(self, job_id, **changes):
         """Modifies the properties of a single job.
 
         Modifications are passed to this method as extra keyword arguments.
@@ -150,7 +159,7 @@ class BileanScheduler(object):
 
         self._scheduler.modify_job(job_id, **changes)
 
-    def remove_job(self, job_id):
+    def _remove_job(self, job_id):
         """Removes a job, preventing it from being run any more.
 
         :param str|unicode job_id: the identifier of the job
@@ -158,15 +167,7 @@ class BileanScheduler(object):
 
         self._scheduler.remove_job(job_id)
 
-    def start(self):
-        LOG.info(_('Starting Billing scheduler'))
-        self._scheduler.start()
-
-    def stop(self):
-        LOG.info(_('Stopping Billing scheduler'))
-        self._scheduler.shutdown()
-
-    def is_exist(self, job_id):
+    def _is_exist(self, job_id):
         """Returns if the Job exists that matches the given ``job_id``.
 
         :param str|unicode job_id: the identifier of the job
@@ -177,65 +178,36 @@ class BileanScheduler(object):
         return job is not None
 
     def _notify_task(self, user_id):
-        res = bilean_lock.user_lock_acquire(user_id, self.engine_id)
-        if not res:
-            LOG.error(_LE('Failed grabbing the lock for user %s'), user_id)
-            return
-
         admin_context = bilean_context.get_admin_context()
-        user = user_mod.User.load(admin_context, user_id=user_id)
-        if user.notify_or_not():
-            user.do_bill(admin_context)
-            reason = "The balance is almost use up"
-            user.set_status(admin_context, user.WARNING, reason)
-            msg = {'user': user_id, 'notification': reason}
-            self.notifier.info('billing.notify', msg)
+        user = self.rpc_client.settle_account(
+            admin_context, user_id, task=self.NOTIFY)
+        user_obj = user_mod.User.from_dict(user)
         try:
             db_api.job_delete(
-                admin_context, self._generate_job_id(user.id, 'notify'))
+                admin_context, self._generate_job_id(user_id, self.NOTIFY))
         except exception.NotFound as e:
             LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
-        self.update_user_job(user)
 
-        bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
+        self.update_jobs(user_obj)
 
     def _daily_task(self, user_id):
-        res = bilean_lock.user_lock_acquire(user_id, self.engine_id)
-        if not res:
-            LOG.error(_LE('Failed grabbing the lock for user %s'), user_id)
-            return
-
         admin_context = bilean_context.get_admin_context()
-        user = user_mod.User.load(admin_context, user_id=user_id)
-        user.do_bill(admin_context)
-
-        try:
-            db_api.job_delete(
-                admin_context, self._generate_job_id(user.id, 'daily'))
-        except exception.NotFound as e:
-            LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
-        self.update_user_job(user)
-
-        bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
+        user = self.rpc_client.settle_account(
+            admin_context, user_id, task=self.DAILY)
+        user_obj = user_mod.User.from_dict(user)
+        self.update_jobs(user_obj)
 
     def _freeze_task(self, user_id):
-        res = bilean_lock.user_lock_acquire(user_id, self.engine_id)
-        if not res:
-            LOG.error(_LE('Failed grabbing the lock for user %s'), user_id)
-            return
-
         admin_context = bilean_context.get_admin_context()
-        user = user_mod.User.load(admin_context, user_id=user_id)
-        user.do_bill(admin_context)
-
+        user = self.rpc_client.settle_account(
+            admin_context, user_id, task=self.FREEZE)
+        user_obj = user_mod.User.from_dict(user)
         try:
             db_api.job_delete(
-                admin_context, self._generate_job_id(user.id, 'freeze'))
+                admin_context, self._generate_job_id(user_id, self.FREEZE))
         except exception.NotFound as e:
             LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
-        self.update_user_job(user)
-
-        bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
+        self.update_jobs(user_obj)
 
     def _add_notify_job(self, user):
         if not user.rate:
@@ -247,11 +219,11 @@ class BileanScheduler(object):
         run_date = timeutils.utcnow() + timedelta(seconds=notify_seconds)
         job_params = {'run_date': run_date}
         job_id = self._generate_job_id(user.id, self.NOTIFY)
-        self.add_job(self._notify_task, job_id, **job_params)
+        self._add_job(self._notify_task, job_id, **job_params)
         # Save job to database
         job = {'id': job_id,
                'job_type': self.NOTIFY,
-               'engine_id': self.engine_id,
+               'scheduler_id': self.scheduler_id,
                'parameters': {'run_date': utils.format_time(run_date)}}
         admin_context = bilean_context.get_admin_context()
         db_api.job_create(admin_context, job)
@@ -263,11 +235,11 @@ class BileanScheduler(object):
         run_date = timeutils.utcnow() + timedelta(seconds=total_seconds)
         job_params = {'run_date': run_date}
         job_id = self._generate_job_id(user.id, self.FREEZE)
-        self.add_job(self._freeze_task, job_id, **job_params)
+        self._add_job(self._freeze_task, job_id, **job_params)
         # Save job to database
         job = {'id': job_id,
                'job_type': self.FREEZE,
-               'engine_id': self.engine_id,
+               'scheduler_id': self.scheduler_id,
                'parameters': {'run_date': utils.format_time(run_date)}}
         admin_context = bilean_context.get_admin_context()
         db_api.job_create(admin_context, job)
@@ -277,46 +249,16 @@ class BileanScheduler(object):
         job_id = self._generate_job_id(user.id, self.DAILY)
         job_params = {'hour': random.randint(0, 23),
                       'minute': random.randint(0, 59)}
-        self.add_job(self._daily_task, job_id, trigger_type='cron',
-                     **job_params)
+        self._add_job(self._daily_task, job_id,
+                      trigger_type='cron', **job_params)
         # Save job to database
         job = {'id': job_id,
                'job_type': self.DAILY,
-               'engine_id': self.engine_id,
+               'scheduler_id': self.scheduler_id,
                'parameters': job_params}
         admin_context = bilean_context.get_admin_context()
         db_api.job_create(admin_context, job)
         return True
-
-    def update_user_job(self, user):
-        """Update user's billing job"""
-        # Delete all jobs except daily job
-        admin_context = bilean_context.get_admin_context()
-        for job_type in self.NOTIFY, self.FREEZE:
-            job_id = self._generate_job_id(user.id, job_type)
-            try:
-                if self.is_exist(job_id):
-                    self.remove_job(job_id)
-                    db_api.job_delete(admin_context, job_id)
-            except Exception as e:
-                LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
-
-        if user.status == user.ACTIVE:
-            self._add_notify_job(user)
-        elif user.status == user.WARNING:
-            self._add_freeze_job(user)
-
-    def delete_user_jobs(self, user):
-        """Delete all jobs related the specific user."""
-        admin_context = bilean_context.get_admin_context()
-        for job_type in self.job_types:
-            job_id = self._generate_job_id(user.id, job_type)
-            try:
-                if self.is_exist(job_id):
-                    self.remove_job(job_id)
-                    db_api.job_delete(admin_context, job_id)
-            except Exception as e:
-                LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
 
     def _generate_timer(self):
         """Generate a random timer include hour and minute."""
@@ -327,6 +269,36 @@ class BileanScheduler(object):
     def _generate_job_id(self, user_id, job_type):
         """Generate job id by given user_id and job type"""
         return "%s-%s" % (job_type, user_id)
+
+    def update_jobs(self, user):
+        """Update user's billing job"""
+        # Delete all jobs except daily job
+        admin_context = bilean_context.get_admin_context()
+        for job_type in self.NOTIFY, self.FREEZE:
+            job_id = self._generate_job_id(user.id, job_type)
+            try:
+                if self._is_exist(job_id):
+                    self._remove_job(job_id)
+                    db_api.job_delete(admin_context, job_id)
+            except Exception as e:
+                LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
+
+        if user.status == user.ACTIVE:
+            self._add_notify_job(user)
+        elif user.status == user.WARNING:
+            self._add_freeze_job(user)
+
+    def delete_jobs(self, user):
+        """Delete all jobs related the specific user."""
+        admin_context = bilean_context.get_admin_context()
+        for job_type in self.job_types:
+            job_id = self._generate_job_id(user.id, job_type)
+            try:
+                if self._is_exist(job_id):
+                    self._remove_job(job_id)
+                    db_api.job_delete(admin_context, job_id)
+            except Exception as e:
+                LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
 
 
 def list_opts():
