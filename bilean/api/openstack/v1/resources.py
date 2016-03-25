@@ -94,13 +94,14 @@ class ResourceController(object):
         if not validator.is_valid_body(body):
             raise exc.HTTPUnprocessableEntity()
 
-        resources = body.get('resources', None)
+        resources = body.get('resources')
         if not resources:
             msg = _("Resources is empty")
             raise exc.HTTPBadRequest(explanation=msg)
-        if body.get('count', None):
+        count = body.get('count')
+        if count:
             try:
-                validator.validate_integer(body.get('count'), 'count',
+                validator.validate_integer(count, 'count',
                                            consts.MIN_RESOURCE_NUM,
                                            consts.MAX_RESOURCE_NUM)
             except exception.InvalidInput as e:

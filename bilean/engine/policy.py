@@ -23,15 +23,15 @@ class Policy(object):
     def __init__(self, name, **kwargs):
         self.name = name
 
-        self.id = kwargs.get('id', None)
+        self.id = kwargs.get('id')
         self.is_default = kwargs.get('is_default', False)
         # rules schema like [{'id': 'xxx', 'type': 'os.nova.server'}]
         self.rules = kwargs.get('rules', [])
-        self.metadata = kwargs.get('metadata', None)
+        self.metadata = kwargs.get('metadata')
 
-        self.created_at = kwargs.get('created_at', None)
-        self.updated_at = kwargs.get('updated_at', None)
-        self.deleted_at = kwargs.get('deleted_at', None)
+        self.created_at = kwargs.get('created_at')
+        self.updated_at = kwargs.get('updated_at')
+        self.deleted_at = kwargs.get('deleted_at')
 
     def store(self, context):
         """Store the policy record into database table."""

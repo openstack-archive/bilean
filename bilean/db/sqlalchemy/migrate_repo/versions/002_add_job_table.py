@@ -28,7 +28,7 @@ def upgrade(migrate_engine):
         'job', meta,
         sqlalchemy.Column('id', sqlalchemy.String(50),
                           primary_key=True, nullable=False),
-        sqlalchemy.Column('engine_id', sqlalchemy.String(36),
+        sqlalchemy.Column('scheduler_id', sqlalchemy.String(36),
                           nullable=False),
         sqlalchemy.Column('job_type', sqlalchemy.String(10),
                           nullable=False),

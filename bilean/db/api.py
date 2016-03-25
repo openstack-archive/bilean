@@ -154,8 +154,8 @@ def job_create(context, values):
     return IMPL.job_create(context, values)
 
 
-def job_get_all(context, engine_id=None):
-    return IMPL.job_get_all(context, engine_id=engine_id)
+def job_get_all(context, scheduler_id=None):
+    return IMPL.job_get_all(context, scheduler_id=scheduler_id)
 
 
 def job_delete(context, job_id):

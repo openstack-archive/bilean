@@ -40,7 +40,7 @@ class RuleData(object):
         return self.data[consts.RULE_SPEC]
 
     def metadata(self):
-        return self.data.get(consts.RULE_METADATA, None)
+        return self.data.get(consts.RULE_METADATA)
 
 
 class RuleController(object):
@@ -103,7 +103,7 @@ class RuleController(object):
         if not validator.is_valid_body(body):
             raise exc.HTTPUnprocessableEntity()
 
-        rule_data = body.get('rule', None)
+        rule_data = body.get('rule')
         if rule_data is None:
             raise exc.HTTPBadRequest(_("Malformed request data, missing "
                                        "'rule' key in request body."))

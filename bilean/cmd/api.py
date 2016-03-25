@@ -13,20 +13,15 @@
 #    under the License.
 
 """
-Bilean API Server. An OpenStack ReST API to Bilean
+Bilean API Server.
+
+An OpenStack ReST API to Bilean
 """
 
 import eventlet
 eventlet.monkey_patch(os=False)
 
-import os
 import sys
-
-possible_topdir = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]),
-                                   os.pardir,
-                                   os.pardir))
-if os.path.exists(os.path.join(possible_topdir, 'bilean', '__init__.py')):
-    sys.path.insert(0, possible_topdir)
 
 from bilean.common import config
 from bilean.common.i18n import _LI
@@ -35,19 +30,18 @@ from bilean.common import wsgi
 from bilean import version
 
 from oslo_config import cfg
-from oslo_i18n import _lazy
+import oslo_i18n as i18n
 from oslo_log import log as logging
 from oslo_service import systemd
-
 import six
 
 
-_lazy.enable_lazy()
+i18n.enable_lazy()
 
 LOG = logging.getLogger('bilean.api')
 
 
-if __name__ == "__main__":
+def main():
     try:
         logging.register_options(cfg.CONF)
         cfg.CONF(project='bilean', prog='bilean-api',

@@ -12,42 +12,35 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+"""
+Bilean Scheduler Server.
+"""
+
 import eventlet
 eventlet.monkey_patch()
 
-import os
-import sys
-
-# If ../bilean/__init__.py exists, add ../ to Python search path, so that
-# it will override what happens to be installed in /usr/(local/)lib/python...
-POSSIBLE_TOPDIR = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]),
-                                   os.pardir,
-                                   os.pardir))
-if os.path.exists(os.path.join(POSSIBLE_TOPDIR, 'bilean', '__init__.py')):
-    sys.path.insert(0, POSSIBLE_TOPDIR)
+from bilean.common import consts
+from bilean.common import messaging
 
 from oslo_config import cfg
 from oslo_i18n import _lazy
 from oslo_log import log as logging
 from oslo_service import service
 
-from bilean.common import config
-from bilean.common import messaging
-
 _lazy.enable_lazy()
 
-LOG = logging.getLogger('bilean.notification')
+LOG = logging.getLogger('bilean.scheduler')
 
 
-if __name__ == "__main__":
+def main():
     logging.register_options(cfg.CONF)
-    cfg.CONF(project='bilean', prog='bilean-notification')
-    logging.setup(cfg.CONF, 'bilean-notification')
+    cfg.CONF(project='bilean', prog='bilean-scheduler')
+    logging.setup(cfg.CONF, 'bilean-scheduler')
     logging.set_defaults()
     messaging.setup()
 
-    from bilean.notification import notification
+    from bilean.scheduler import service as scheduler
 
-    srv = notification.NotificationService()
+    srv = scheduler.SchedulerService(cfg.CONF.host, consts.SCHEDULER_TOPIC)
     launcher = service.launch(cfg.CONF, srv)
     launcher.wait()

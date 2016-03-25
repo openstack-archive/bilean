@@ -73,7 +73,7 @@ class ServerRule(base.Rule):
 
         :param: resource: Resource object to find price.
         '''
-        flavor = resource.properties.get('flavor', None)
+        flavor = resource.properties.get('flavor')
         if not flavor:
             raise exception.Error(msg='Flavor should be provided to get '
                                       'the price of server.')

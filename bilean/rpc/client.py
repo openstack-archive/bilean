@@ -29,6 +29,7 @@ class EngineClient(object):
     BASE_RPC_API_VERSION = '1.0'
 
     def __init__(self):
+        cfg.CONF.import_opt('host', 'bilean.common.config')
         self._client = messaging.get_rpc_client(
             topic=consts.ENGINE_TOPIC,
             server=cfg.CONF.host,
@@ -54,6 +55,7 @@ class EngineClient(object):
             client = self._client
         return client.cast(ctxt, method, **kwargs)
 
+    # users
     def user_list(self, ctxt, show_deleted=False, limit=None,
                   marker=None, sort_keys=None, sort_dir=None,
                   filters=None):
@@ -88,6 +90,7 @@ class EngineClient(object):
                                              user_id=user_id,
                                              policy_id=policy_id))
 
+    # rules
     def rule_list(self, ctxt, limit=None, marker=None, sort_keys=None,
                   sort_dir=None, filters=None, show_deleted=False):
         return self.call(ctxt, self.make_msg('rule_list', limit=limit,
@@ -113,6 +116,7 @@ class EngineClient(object):
         return self.call(ctxt, self.make_msg('rule_delete',
                                              rule_id=rule_id))
 
+    # resources
     def resource_list(self, ctxt, user_id=None, limit=None, marker=None,
                       sort_keys=None, sort_dir=None, filters=None,
                       project_safe=True, show_deleted=False):
@@ -144,6 +148,7 @@ class EngineClient(object):
         return self.call(ctxt, self.make_msg('resource_delete',
                                              resource_id=resource_id))
 
+    # events
     def event_list(self, ctxt, user_id=None, limit=None, marker=None,
                    sort_keys=None, sort_dir=None, filters=None,
                    start_time=None, end_time=None, project_safe=True,
@@ -162,6 +167,7 @@ class EngineClient(object):
         return self.call(cnxt, self.make_msg('validate_creation',
                                              resources=resources))
 
+    # policies
     def policy_list(self, ctxt, limit=None, marker=None, sort_keys=None,
                     sort_dir=None, filters=None, show_deleted=False):
         return self.call(ctxt, self.make_msg('policy_list', limit=limit,
@@ -197,3 +203,8 @@ class EngineClient(object):
         return self.call(ctxt, self.make_msg('policy_add_rules',
                                              policy_id=policy_id,
                                              rules=rules))
+
+    def settle_account(self, ctxt, user_id, task=None):
+        return self.call(ctxt, self.make_msg('settle_account',
+                                             user_id=user_id,
+                                             task=task))

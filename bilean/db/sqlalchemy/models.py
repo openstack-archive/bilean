@@ -186,7 +186,7 @@ class Job(BASE, BileanBase):
 
     id = sqlalchemy.Column(sqlalchemy.String(50), primary_key=True,
                            unique=True)
-    engine_id = sqlalchemy.Column(sqlalchemy.String(36))
+    scheduler_id = sqlalchemy.Column(sqlalchemy.String(36))
     job_type = sqlalchemy.Column(sqlalchemy.String(10))
     parameters = sqlalchemy.Column(types.Dict())
 

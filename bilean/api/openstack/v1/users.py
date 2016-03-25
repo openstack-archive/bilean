@@ -101,14 +101,14 @@ class UserController(object):
             raise exc.HTTPBadRequest(msg)
 
         if action == self.ATTACH_POLICY:
-            policy = body.get(action).get('policy', None)
+            policy = body.get(action).get('policy')
             if policy is None:
                 raise exc.HTTPBadRequest(_("Malformed request data, no policy "
                                            "specified to attach."))
             user = self.rpc_client.user_attach_policy(
                 req.context, user_id, policy)
         elif action == self.RECHARGE:
-            value = body.get(action).get('value', None)
+            value = body.get(action).get('value')
             if value is None:
                 raise exc.HTTPBadRequest(_("Malformed request data, missing "
                                            "'value' key in request body."))

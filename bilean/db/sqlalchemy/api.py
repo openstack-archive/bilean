@@ -395,10 +395,10 @@ def job_create(context, values):
     return job_ref
 
 
-def job_get_all(context, engine_id=None):
+def job_get_all(context, scheduler_id=None):
     query = model_query(context, models.Job)
-    if engine_id:
-        query = query.filter_by(engine_id=engine_id)
+    if scheduler_id:
+        query = query.filter_by(scheduler_id=scheduler_id)
 
     return query.all()
 

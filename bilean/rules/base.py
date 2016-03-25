@@ -80,14 +80,14 @@ class Rule(object):
         self.name = name
         self.spec = spec
 
-        self.id = kwargs.get('id', None)
+        self.id = kwargs.get('id')
         self.type = kwargs.get('type', '%s-%s' % (type_name, version))
 
         self.metadata = kwargs.get('metadata', {})
 
-        self.created_at = kwargs.get('created_at', None)
-        self.updated_at = kwargs.get('updated_at', None)
-        self.deleted_at = kwargs.get('deleted_at', None)
+        self.created_at = kwargs.get('created_at')
+        self.updated_at = kwargs.get('updated_at')
+        self.deleted_at = kwargs.get('deleted_at')
 
         self.spec_data = schema.Spec(self.spec_schema, self.spec)
         self.properties = schema.Spec(self.properties_schema,
