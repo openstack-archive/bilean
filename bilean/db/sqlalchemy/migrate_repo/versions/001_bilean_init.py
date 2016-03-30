@@ -32,8 +32,8 @@ def upgrade(migrate_engine):
         sqlalchemy.Column('rate', sqlalchemy.Float),
         sqlalchemy.Column('credit', sqlalchemy.Integer),
         sqlalchemy.Column('last_bill', sqlalchemy.DateTime),
-        sqlalchemy.Column('status', sqlalchemy.String(10)),
-        sqlalchemy.Column('status_reason', sqlalchemy.String(255)),
+        sqlalchemy.Column('status', sqlalchemy.String(255)),
+        sqlalchemy.Column('status_reason', sqlalchemy.Text),
         sqlalchemy.Column('created_at', sqlalchemy.DateTime),
         sqlalchemy.Column('updated_at', sqlalchemy.DateTime),
         sqlalchemy.Column('deleted_at', sqlalchemy.DateTime),
@@ -109,11 +109,66 @@ def upgrade(migrate_engine):
         mysql_charset='utf8'
     )
 
+    action = sqlalchemy.Table(
+        'action', meta,
+        sqlalchemy.Column('id', sqlalchemy.String(36),
+                          primary_key=True, nullable=False),
+        sqlalchemy.Column('name', sqlalchemy.String(63)),
+        sqlalchemy.Column('context', types.Dict),
+        sqlalchemy.Column('target', sqlalchemy.String(36)),
+        sqlalchemy.Column('action', sqlalchemy.String(255)),
+        sqlalchemy.Column('cause', sqlalchemy.String(255)),
+        sqlalchemy.Column('owner', sqlalchemy.String(36)),
+        sqlalchemy.Column('start_time', sqlalchemy.Float(precision='24,8')),
+        sqlalchemy.Column('end_time', sqlalchemy.Float(precision='24,8')),
+        sqlalchemy.Column('timeout', sqlalchemy.Integer),
+        sqlalchemy.Column('inputs', types.Dict),
+        sqlalchemy.Column('outputs', types.Dict),
+        sqlalchemy.Column('data', types.Dict),
+        sqlalchemy.Column('status', sqlalchemy.String(255)),
+        sqlalchemy.Column('status_reason', sqlalchemy.Text),
+        sqlalchemy.Column('created_at', sqlalchemy.DateTime),
+        sqlalchemy.Column('updated_at', sqlalchemy.DateTime),
+        mysql_engine='InnoDB',
+        mysql_charset='utf8'
+    )
+
+    dependency = sqlalchemy.Table(
+        'dependency', meta,
+        sqlalchemy.Column('id', sqlalchemy.String(36),
+                          primary_key=True, nullable=False),
+        sqlalchemy.Column('depended',
+                          sqlalchemy.String(36),
+                          sqlalchemy.ForeignKey('action.id'),
+                          nullable=False),
+        sqlalchemy.Column('dependent',
+                          sqlalchemy.String(36),
+                          sqlalchemy.ForeignKey('action.id'),
+                          nullable=False),
+        mysql_engine='InnoDB',
+        mysql_charset='utf8'
+    )
+
     user_lock = sqlalchemy.Table(
         'user_lock', meta,
         sqlalchemy.Column('user_id', sqlalchemy.String(36),
                           primary_key=True, nullable=False),
-        sqlalchemy.Column('engine_id', sqlalchemy.String(36)),
+        sqlalchemy.Column('action_id', sqlalchemy.String(36)),
+        mysql_engine='InnoDB',
+        mysql_charset='utf8'
+    )
+
+    service = sqlalchemy.Table(
+        'service', meta,
+        sqlalchemy.Column('id', sqlalchemy.String(36),
+                          primary_key=True, nullable=False),
+        sqlalchemy.Column('host', sqlalchemy.String(255)),
+        sqlalchemy.Column('binary', sqlalchemy.String(255)),
+        sqlalchemy.Column('topic', sqlalchemy.String(255)),
+        sqlalchemy.Column('disabled', sqlalchemy.Boolean),
+        sqlalchemy.Column('disabled_reason', sqlalchemy.String(255)),
+        sqlalchemy.Column('created_at', sqlalchemy.DateTime),
+        sqlalchemy.Column('updated_at', sqlalchemy.DateTime),
         mysql_engine='InnoDB',
         mysql_charset='utf8'
     )
@@ -124,7 +179,10 @@ def upgrade(migrate_engine):
         rule,
         resource,
         event,
+        action,
+        dependency,
         user_lock,
+        service,
     )
 
     for index, table in enumerate(tables):

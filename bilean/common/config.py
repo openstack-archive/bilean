@@ -42,9 +42,6 @@ service_opts = [
     cfg.IntOpt('num_engine_workers',
                default=processutils.get_worker_count(),
                help=_('Number of heat-engine processes to fork and run.')),
-    cfg.StrOpt('environment_dir',
-               default='/etc/bilean/environments',
-               help=_('The directory to search for environment files.')),
 ]
 
 engine_opts = [

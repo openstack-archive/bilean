@@ -140,12 +140,14 @@ class EngineClient(object):
                                              resource_type=resource_type,
                                              properties=properties))
 
-    def resource_update(self, ctxt, resource):
+    def resource_update(self, ctxt, user_id, resource):
         return self.call(ctxt, self.make_msg('resource_update',
+                                             user_id=user_id,
                                              resource=resource))
 
-    def resource_delete(self, ctxt, resource_id):
+    def resource_delete(self, ctxt, user_id, resource_id):
         return self.call(ctxt, self.make_msg('resource_delete',
+                                             user_id=user_id,
                                              resource_id=resource_id))
 
     # events

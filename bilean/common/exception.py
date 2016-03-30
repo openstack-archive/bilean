@@ -88,6 +88,10 @@ class MultipleChoices(BileanException):
                 "Please be more specific.")
 
 
+class InvalidInput(BileanException):
+    msg_fmt = _("Invalid value '%(value)s' specified for '%(name)s'")
+
+
 class InvalidParameter(BileanException):
     msg_fmt = _("Invalid value '%(value)s' specified for '%(name)s'")
 
@@ -108,12 +112,8 @@ class RuleNotSpecified(BileanException):
     msg_fmt = _("Rule not specified.")
 
 
-class RuleOperationFailed(BileanException):
-    msg_fmt = _("%(message)s")
-
-
-class RuleOperationTimeout(BileanException):
-    msg_fmt = _("%(message)s")
+class ActionNotFound(BileanException):
+    msg_fmt = _("The action (%(action)s) could not be found.")
 
 
 class PolicyNotFound(BileanException):

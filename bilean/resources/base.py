@@ -71,9 +71,9 @@ class Resource(object):
 
         return self.id
 
-    def delete(self, context):
+    def delete(self, context, soft_delete=True):
         '''Delete resource from db.'''
-        db_api.resource_delete(context, self.id)
+        db_api.resource_delete(context, self.id, soft_delete=soft_delete)
 
     @classmethod
     def _from_db_record(cls, record):
@@ -122,6 +122,14 @@ class Resource(object):
                                           project_safe=project_safe)
 
         return [cls._from_db_record(record) for record in records]
+
+    @classmethod
+    def from_dict(cls, values):
+        id = values.pop('id', None)
+        user_id = values.pop('user_id', None)
+        resource_type = values.pop('resource_type', None)
+        properties = values.pop('properties', {})
+        return cls(id, user_id, resource_type, properties, **values)
 
     def to_dict(self):
         resource_dict = {

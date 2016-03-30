@@ -169,7 +169,8 @@ class User(object):
 
     @classmethod
     def from_dict(cls, values):
-        return cls(values.get('id'), **values)
+        id = values.pop('id', None)
+        return cls(id, **values)
 
     def to_dict(self):
         user_dict = {
@@ -194,17 +195,37 @@ class User(object):
             self.status_reason = reason
         self.store(context)
 
-    def update_with_resource(self, context, resource, action='create'):
+    def update_with_resource(self, context, resource,
+                             resource_action='create'):
         '''Update user with resource'''
-        self._settle_account(context)
 
-        if 'create' == action:
+        now = timeutils.utcnow()
+        extra_cost = 0
+        if 'create' == resource_action:
             d_rate = resource.rate
-        elif 'delete' == action:
+            if resource.properties.get('created_at') is not None:
+                created_at = timeutils.parse_strtime(
+                    resource.properties.get('created_at'))
+                extra_seconds = (now - created_at).total_seconds()
+                extra_cost = d_rate * extra_seconds
+        elif 'delete' == resource_action:
             d_rate = -resource.rate
-        elif 'update' == action:
+            if resource.properties.get('deleted_at') is not None:
+                deleted_at = timeutils.parse_strtime(
+                    resource.properties.get('deleted_at'))
+                extra_seconds = (now - deleted_at).total_seconds()
+                extra_cost = d_rate * extra_seconds
+        elif 'update' == resource_action:
             d_rate = resource.d_rate
+            if resource.properties.get('updated_at') is not None:
+                updated_at = timeutils.parse_strtime(
+                    resource.properties.get('updated_at'))
+                extra_seconds = (now - updated_at).total_seconds()
+                extra_cost = d_rate * extra_seconds
 
+        self._settle_account(context, extra_cost=extra_cost,
+                             cause_resource=resource,
+                             resource_action=resource_action)
         self._change_user_rate(context, d_rate)
         self.store(context)
 
@@ -252,7 +273,7 @@ class User(object):
                 self.status_reason = reason
 
         self.store(context)
-        event_mod.record(context, self.id, action='recharge', value=value)
+        event_mod.record(context, self, action='recharge', value=value)
 
     def notify_or_not(self):
         '''Check if user should be notified.'''
@@ -269,21 +290,6 @@ class User(object):
         db_api.user_delete(context, self.id)
         return True
 
-    def _settle_account(self, context):
-        if self.status not in [self.ACTIVE, self.WARNING]:
-            LOG.info(_LI("Ignore settlement action because user is in '%s' "
-                         "status."), self.status)
-            return
-
-        now = timeutils.utcnow()
-        total_seconds = (now - self.last_bill).total_seconds()
-        cost = self.rate * total_seconds
-        if cost > 0:
-            self.balance -= cost
-            self.last_bill = now
-            event_mod.record(context, self.id, action='charge',
-                             seconds=total_seconds)
-
     def _freeze(self, context, reason=None):
         '''Freeze user when balance overdraft.'''
         LOG.info(_LI("Freeze user %(user_id)s, reason: %(reason)s"),
@@ -294,8 +300,25 @@ class User(object):
             if resource.do_delete(context):
                 self._change_user_rate(context, -resource.rate)
 
+    def _settle_account(self, context, cause_resource=None,
+                        resource_action=None, extra_cost=0):
+        if self.status not in [self.ACTIVE, self.WARNING]:
+            LOG.info(_LI("Ignore settlement action because user is in '%s' "
+                         "status."), self.status)
+            return
+        now = timeutils.utcnow()
+        total_seconds = (now - self.last_bill).total_seconds()
+        cost = self.rate * total_seconds + extra_cost
+        self.balance -= cost
+        event_mod.record(context, self, timestamp=now,
+                         cause_resource=cause_resource,
+                         resource_action=resource_action,
+                         extra_cost=extra_cost)
+        self.last_bill = now
+
     def settle_account(self, context, task=None):
         '''Settle account for user.'''
+
         notifier = bilean_notifier.Notifier()
         self._settle_account(context)
 

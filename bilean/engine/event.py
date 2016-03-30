@@ -113,38 +113,56 @@ class Event(object):
         return evt
 
 
-def record(context, user_id, action=None, seconds=0, value=0):
+def record(context, user, timestamp=None, action='charge', cause_resource=None,
+           resource_action=None, extra_cost=0, value=0):
     """Generate events for specify user
 
     :param context: oslo.messaging.context
-    :param user_id: ID of user to mark event
+    :param user: object user to mark event
     :param action: action of event, include 'charge' and 'recharge'
-    :param seconds: use time length, needed when action is 'charge'
+    :param cause_resource: object resource which triggered the action
+    :param resource_action: action of resource
+    :param extra_cost: extra cost of the resource
+    :param timestamp: timestamp when event occurs
     :param value: value of recharge, needed when action is 'recharge'
     """
+    if timestamp is None:
+        timestamp = timeutils.utcnow()
     try:
         if action == 'charge':
             resources = resource_base.Resource.load_all(
-                context, user_id=user_id, project_safe=False)
-
+                context, user_id=user.id, project_safe=False)
+            seconds = (timestamp - user.last_bill).total_seconds()
             res_mapping = {}
             for resource in resources:
-                usage = resource.rate * seconds
+                if cause_resource and resource.id == cause_resource.id:
+                    if resource_action == 'create':
+                        usage = extra_cost
+                    elif resource_action == 'update':
+                        usage = resource.rate * seconds + extra_cost
+                else:
+                    usage = resource.rate * seconds
                 if res_mapping.get(resource.resource_type) is None:
                     res_mapping[resource.resource_type] = usage
                 else:
                     res_mapping[resource.resource_type] += usage
 
+            if resource_action == 'delete':
+                usage = cause_resource.rate * seconds + extra_cost
+                if res_mapping.get(cause_resource.resource_type) is None:
+                    res_mapping[cause_resource.resource_type] = 0
+                res_mapping[cause_resource.resource_type] += usage
+
             for res_type in res_mapping.keys():
-                event = Event(timeutils.utcnow(),
-                              user_id=user_id,
+                event = Event(timestamp,
+                              user_id=user.id,
                               action=action,
                               resource_type=res_type,
                               value=res_mapping.get(res_type))
                 event.store(context)
         elif action == 'recharge':
-            event = Event(timeutils.utcnow(),
-                          user_id=user_id,
+            event = Event(timestamp,
+                          user_id=user.id,
                           action=action,
                           value=value)
             event.store(context)
