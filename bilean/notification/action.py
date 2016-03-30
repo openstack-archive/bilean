@@ -86,11 +86,15 @@ class ResourceAction(Action):
 
     def do_update(self):
         """Update a resource"""
-        return self.rpc_client.resource_update(self.cnxt, self.data)
+        return self.rpc_client.resource_update(self.cnxt,
+                                               self.data.pop('user_id'),
+                                               self.data)
 
     def do_delete(self):
         """Delete a resource"""
-        return self.rpc_client.resource_delete(self.cnxt, self.id)
+        return self.rpc_client.resource_delete(self.cnxt,
+                                               self.user_id,
+                                               self.id)
 
 
 class UserAction(Action):

@@ -120,8 +120,8 @@ def resource_update(context, resource_id, values):
     return IMPL.resource_update(context, resource_id, values)
 
 
-def resource_delete(context, resource_id):
-    IMPL.resource_delete(context, resource_id)
+def resource_delete(context, resource_id, soft_delete=True):
+    IMPL.resource_delete(context, resource_id, soft_delete=soft_delete)
 
 
 # events
@@ -187,9 +187,122 @@ def policy_delete(context, policy_id):
 
 
 # locks
-def user_lock_acquire(user_id, engine_id):
-    return IMPL.user_lock_acquire(user_id, engine_id)
+def user_lock_acquire(user_id, action_id):
+    return IMPL.user_lock_acquire(user_id, action_id)
 
 
-def user_lock_release(user_id, engine_id=None):
-    return IMPL.user_lock_release(user_id, engine_id=engine_id)
+def user_lock_release(user_id, action_id):
+    return IMPL.user_lock_release(user_id, action_id)
+
+
+def user_lock_steal(user_id, action_id):
+    return IMPL.user_lock_steal(user_id, action_id)
+
+
+# actions
+def action_create(context, values):
+    return IMPL.action_create(context, values)
+
+
+def action_update(context, action_id, values):
+    return IMPL.action_update(context, action_id, values)
+
+
+def action_get(context, action_id, project_safe=True, refresh=False):
+    return IMPL.action_get(context, action_id, project_safe=project_safe,
+                           refresh=refresh)
+
+
+def action_get_all_by_owner(context, owner):
+    return IMPL.action_get_all_by_owner(context, owner)
+
+
+def action_get_all(context, filters=None, limit=None, marker=None, sort=None,
+                   project_safe=True):
+    return IMPL.action_get_all(context, filters=filters, sort=sort,
+                               limit=limit, marker=marker,
+                               project_safe=project_safe)
+
+
+def action_check_status(context, action_id, timestamp):
+    return IMPL.action_check_status(context, action_id, timestamp)
+
+
+def dependency_add(context, depended, dependent):
+    return IMPL.dependency_add(context, depended, dependent)
+
+
+def dependency_get_depended(context, action_id):
+    return IMPL.dependency_get_depended(context, action_id)
+
+
+def dependency_get_dependents(context, action_id):
+    return IMPL.dependency_get_dependents(context, action_id)
+
+
+def action_mark_succeeded(context, action_id, timestamp):
+    return IMPL.action_mark_succeeded(context, action_id, timestamp)
+
+
+def action_mark_failed(context, action_id, timestamp, reason=None):
+    return IMPL.action_mark_failed(context, action_id, timestamp, reason)
+
+
+def action_mark_cancelled(context, action_id, timestamp):
+    return IMPL.action_mark_cancelled(context, action_id, timestamp)
+
+
+def action_acquire(context, action_id, owner, timestamp):
+    return IMPL.action_acquire(context, action_id, owner, timestamp)
+
+
+def action_acquire_first_ready(context, owner, timestamp):
+    return IMPL.action_acquire_first_ready(context, owner, timestamp)
+
+
+def action_abandon(context, action_id):
+    return IMPL.action_abandon(context, action_id)
+
+
+def action_lock_check(context, action_id, owner=None):
+    '''Check whether an action has been locked(by a owner).'''
+    return IMPL.action_lock_check(context, action_id, owner)
+
+
+def action_signal(context, action_id, value):
+    '''Send signal to an action via DB.'''
+    return IMPL.action_signal(context, action_id, value)
+
+
+def action_signal_query(context, action_id):
+    '''Query signal status for the sepcified action.'''
+    return IMPL.action_signal_query(context, action_id)
+
+
+def action_delete(context, action_id, force=False):
+    return IMPL.action_delete(context, action_id, force)
+
+
+# services
+def service_create(context, host, binary, topic=None):
+    return IMPL.service_create(context, host, binary, topic=topic)
+
+
+def service_update(context, service_id, values=None):
+    return IMPL.service_update(context, service_id, values=values)
+
+
+def service_delete(context, service_id):
+    return IMPL.service_delete(context, service_id)
+
+
+def service_get(context, service_id):
+    return IMPL.service_get(context, service_id)
+
+
+def service_get_by_host_and_binary(context, host, binary):
+    return IMPL.service_get_by_host_and_binary(context, host, binary)
+
+
+def service_get_all(context):
+    return IMPL.service_get_all(context)

@@ -19,12 +19,13 @@ from oslo_config import cfg
 from oslo_db.sqlalchemy import session as db_session
 from oslo_db.sqlalchemy import utils
 from oslo_log import log as logging
+from oslo_utils import timeutils
 
 from sqlalchemy.orm.session import Session
 
 from bilean.common import consts
 from bilean.common import exception
-from bilean.common.i18n import _LE
+from bilean.common.i18n import _
 from bilean.db.sqlalchemy import filters as db_filters
 from bilean.db.sqlalchemy import migration
 from bilean.db.sqlalchemy import models
@@ -224,7 +225,7 @@ def rule_get_all(context, show_deleted=False, limit=None,
     return _paginate_query(context, query, models.Rule,
                            limit=limit, marker=marker,
                            sort_keys=keys, sort_dir=sort_dir,
-                           default_sort_keys=['created_at']).all()
+                           default_sort_keys=['id']).all()
 
 
 def rule_create(context, values):
@@ -296,7 +297,7 @@ def resource_get_all(context, user_id=None, show_deleted=False,
     return _paginate_query(context, query, models.Resource,
                            limit=limit, marker=marker,
                            sort_keys=keys, sort_dir=sort_dir,
-                           default_sort_keys=['created_at']).all()
+                           default_sort_keys=['id']).all()
 
 
 def resource_create(context, values):
@@ -307,7 +308,11 @@ def resource_create(context, values):
 
 
 def resource_update(context, resource_id, values):
-    resource = resource_get(context, resource_id)
+    project_safe = True
+    if context.is_admin:
+        project_safe = False
+    resource = resource_get(context, resource_id, show_deleted=True,
+                            project_safe=project_safe)
 
     if resource is None:
         raise exception.ResourceNotFound(resource=resource_id)
@@ -377,7 +382,7 @@ def event_get_all(context, user_id=None, limit=None, marker=None,
     return _paginate_query(context, query, models.Event,
                            limit=limit, marker=marker,
                            sort_keys=keys, sort_dir=sort_dir,
-                           default_sort_keys=['timestamp']).all()
+                           default_sort_keys=['id']).all()
 
 
 def event_create(context, values):
@@ -478,42 +483,394 @@ def policy_delete(context, policy_id):
 
 
 # locks
-def user_lock_acquire(user_id, engine_id):
-    '''Acquire lock on a user.
+def user_lock_acquire(user_id, action_id):
+    session = get_session()
+    session.begin()
 
-    :param user_id: ID of the user.
-    :param engine_id: ID of the engine which wants to lock the user.
-    :return: A user lock if success else False.
-    '''
+    lock = session.query(models.UserLock).get(user_id)
+    if lock is None:
+        lock = models.UserLock(user_id=user_id, action_id=action_id)
+        session.add(lock)
+
+    session.commit()
+    return lock.action_id
+
+
+def user_lock_release(user_id, action_id):
+    session = get_session()
+    session.begin()
+
+    success = False
+    lock = session.query(models.UserLock).get(user_id)
+    if lock is not None and lock.action_id == action_id:
+        session.delete(lock)
+        success = True
+
+    session.commit()
+    return success
+
+
+def user_lock_steal(user_id, action_id):
     session = get_session()
     session.begin()
     lock = session.query(models.UserLock).get(user_id)
     if lock is not None:
-        return False
+        lock.action_id = action_id
+        lock.save(session)
     else:
-        try:
-            lock = models.UserLock(user_id=user_id, engine_id=engine_id)
-            session.add(lock)
-        except Exception as ex:
-            LOG.error(_LE('Error: %s'), six.text_type(ex))
-            return False
-
+        lock = models.UserLock(user_id=user_id, action_id=action_id)
+        session.add(lock)
     session.commit()
-    return lock
+    return lock.action_id
 
 
-def user_lock_release(user_id, engine_id=None):
-    '''Release lock on a user.
+# actions
+def action_create(context, values):
+    action = models.Action()
+    action.update(values)
+    action.save(_session(context))
+    return action
 
-    :param user_id: ID of the user.
-    :return: True indicates successful release, False indicates failure.
-    '''
+
+def action_update(context, action_id, values):
     session = get_session()
-    session.begin()
-    lock = session.query(models.UserLock).get(user_id)
-    if lock is None:
+    action = session.query(models.Action).get(action_id)
+    if not action:
+        raise exception.ActionNotFound(action=action_id)
+
+    action.update(values)
+    action.save(session)
+
+
+def action_get(context, action_id, project_safe=True, refresh=False):
+    session = _session(context)
+    action = session.query(models.Action).get(action_id)
+    if action is None:
+        return None
+
+    if not context.is_admin and project_safe:
+        if action.project != context.project:
+            return None
+
+    session.refresh(action)
+    return action
+
+
+def action_get_all_by_owner(context, owner_id):
+    query = model_query(context, models.Action).\
+        filter_by(owner=owner_id)
+    return query.all()
+
+
+def action_get_all(context, filters=None, limit=None, marker=None,
+                   sort_keys=None, sort_dir=None):
+
+    query = model_query(context, models.Action)
+
+    if filters:
+        query = db_filters.exact_filter(query, models.Action, filters)
+
+    sort_key_map = {
+        consts.ACTION_CREATED_AT: models.Action.created_at.key,
+        consts.ACTION_UPDATED_AT: models.Action.updated_at.key,
+        consts.ACTION_NAME: models.Action.name.key,
+        consts.ACTION_STATUS: models.Action.status.key,
+    }
+    keys = _get_sort_keys(sort_keys, sort_key_map)
+
+    query = db_filters.exact_filter(query, models.Action, filters)
+    return _paginate_query(context, query, models.Action,
+                           limit=limit, marker=marker,
+                           sort_keys=keys, sort_dir=sort_dir,
+                           default_sort_keys=['id']).all()
+
+
+def action_check_status(context, action_id, timestamp):
+    session = _session(context)
+    q = session.query(models.ActionDependency)
+    count = q.filter_by(dependent=action_id).count()
+    if count > 0:
+        return consts.ACTION_WAITING
+
+    action = session.query(models.Action).get(action_id)
+    if action.status == consts.ACTION_WAITING:
+        session.begin()
+        action.status = consts.ACTION_READY
+        action.status_reason = _('All depended actions completed.')
+        action.end_time = timestamp
+        action.save(session)
         session.commit()
-        return False
-    session.delete(lock)
+
+    return action.status
+
+
+def dependency_get_depended(context, action_id):
+    session = _session(context)
+    q = session.query(models.ActionDependency).filter_by(dependent=action_id)
+    return [d.depended for d in q.all()]
+
+
+def dependency_get_dependents(context, action_id):
+    session = _session(context)
+    q = session.query(models.ActionDependency).filter_by(depended=action_id)
+    return [d.dependent for d in q.all()]
+
+
+def dependency_add(context, depended, dependent):
+    if isinstance(depended, list) and isinstance(dependent, list):
+        raise exception.NotSupport(
+            _('Multiple dependencies between lists not support'))
+
+    session = _session(context)
+
+    if isinstance(depended, list):
+        session.begin()
+        for d in depended:
+            r = models.ActionDependency(depended=d, dependent=dependent)
+            session.add(r)
+
+        query = session.query(models.Action).filter_by(id=dependent)
+        query.update({'status': consts.ACTION_WAITING,
+                      'status_reason': _('Waiting for depended actions.')},
+                     synchronize_session=False)
+        session.commit()
+        return
+
+    # Only dependent can be a list now, convert it to a list if it
+    # is not a list
+    if not isinstance(dependent, list):  # e.g. B,C,D depend on A
+        dependents = [dependent]
+    else:
+        dependents = dependent
+
+    session.begin()
+    for d in dependents:
+        r = models.ActionDependency(depended=depended, dependent=d)
+        session.add(r)
+
+    q = session.query(models.Action).filter(models.Action.id.in_(dependents))
+    q.update({'status': consts.ACTION_WAITING,
+              'status_reason': _('Waiting for depended actions.')},
+             synchronize_session=False)
     session.commit()
-    return True
+
+
+def action_mark_succeeded(context, action_id, timestamp):
+    session = _session(context)
+    session.begin()
+
+    query = session.query(models.Action).filter_by(id=action_id)
+    values = {
+        'owner': None,
+        'status': consts.ACTION_SUCCEEDED,
+        'status_reason': _('Action completed successfully.'),
+        'end_time': timestamp,
+    }
+    query.update(values, synchronize_session=False)
+
+    subquery = session.query(models.ActionDependency).filter_by(
+        depended=action_id)
+    subquery.delete(synchronize_session=False)
+    session.commit()
+
+
+def _mark_failed(session, action_id, timestamp, reason=None):
+    # mark myself as failed
+    query = session.query(models.Action).filter_by(id=action_id)
+    values = {
+        'owner': None,
+        'status': consts.ACTION_FAILED,
+        'status_reason': (six.text_type(reason) if reason else
+                          _('Action execution failed')),
+        'end_time': timestamp,
+    }
+    query.update(values, synchronize_session=False)
+
+    query = session.query(models.ActionDependency)
+    query = query.filter_by(depended=action_id)
+    dependents = [d.dependent for d in query.all()]
+    query.delete(synchronize_session=False)
+
+    for d in dependents:
+        _mark_failed(session, d, timestamp)
+
+
+def action_mark_failed(context, action_id, timestamp, reason=None):
+    session = _session(context)
+    session.begin()
+    _mark_failed(session, action_id, timestamp, reason)
+    session.commit()
+
+
+def _mark_cancelled(session, action_id, timestamp, reason=None):
+    query = session.query(models.Action).filter_by(id=action_id)
+    values = {
+        'owner': None,
+        'status': consts.ACTION_CANCELLED,
+        'status_reason': (six.text_type(reason) if reason else
+                          _('Action execution failed')),
+        'end_time': timestamp,
+    }
+    query.update(values, synchronize_session=False)
+
+    query = session.query(models.ActionDependency)
+    query = query.filter_by(depended=action_id)
+    dependents = [d.dependent for d in query.all()]
+    query.delete(synchronize_session=False)
+
+    for d in dependents:
+        _mark_cancelled(session, d, timestamp)
+
+
+def action_mark_cancelled(context, action_id, timestamp, reason=None):
+    session = _session(context)
+    session.begin()
+    _mark_cancelled(session, action_id, timestamp, reason)
+    session.commit()
+
+
+def action_acquire(context, action_id, owner, timestamp):
+    session = _session(context)
+    with session.begin():
+        action = session.query(models.Action).get(action_id)
+        if not action:
+            return None
+
+        if action.owner and action.owner != owner:
+            return None
+
+        if action.status != consts.ACTION_READY:
+            msg = _('The action is not in an executable status: '
+                    '%s') % action.status
+            LOG.warning(msg)
+            return None
+        action.owner = owner
+        action.start_time = timestamp
+        action.status = consts.ACTION_RUNNING
+        action.status_reason = _('The action is being processed.')
+
+        return action
+
+
+def action_acquire_first_ready(context, owner, timestamp):
+    session = _session(context)
+
+    with session.begin():
+        action = session.query(models.Action).\
+            filter_by(status=consts.ACTION_READY).\
+            filter_by(owner=None).first()
+
+        if action:
+            action.owner = owner
+            action.start_time = timestamp
+            action.status = consts.ACTION_RUNNING
+            action.status_reason = _('The action is being processed.')
+
+            return action
+
+
+def action_abandon(context, action_id):
+    '''Abandon an action for other workers to execute again.
+
+    This API is always called with the action locked by the current
+    worker. There is no chance the action is gone or stolen by others.
+    '''
+
+    query = model_query(context, models.Action)
+    action = query.get(action_id)
+
+    action.owner = None
+    action.start_time = None
+    action.status = consts.ACTION_READY
+    action.status_reason = _('The action was abandoned.')
+    action.save(query.session)
+    return action
+
+
+def action_lock_check(context, action_id, owner=None):
+    action = model_query(context, models.Action).get(action_id)
+    if not action:
+        raise exception.ActionNotFound(action=action_id)
+
+    if owner:
+        return owner if owner == action.owner else action.owner
+    else:
+        return action.owner if action.owner else None
+
+
+def action_signal(context, action_id, value):
+    query = model_query(context, models.Action)
+    action = query.get(action_id)
+    if not action:
+        return
+
+    action.control = value
+    action.save(query.session)
+
+
+def action_signal_query(context, action_id):
+    action = model_query(context, models.Action).get(action_id)
+    if not action:
+        return None
+
+    return action.control
+
+
+def action_delete(context, action_id, force=False):
+    session = _session(context)
+    action = session.query(models.Action).get(action_id)
+    if not action:
+        return
+    if ((action.status == 'WAITING') or (action.status == 'RUNNING') or
+            (action.status == 'SUSPENDED')):
+
+        raise exception.ResourceBusyError(resource_type='action',
+                                          resource_id=action_id)
+    session.begin()
+    session.delete(action)
+    session.commit()
+    session.flush()
+
+
+# services
+def service_create(context, host, binary, topic=None):
+    time_now = timeutils.utcnow()
+    svc = models.Service(host=host, binary=binary,
+                         topic=topic, created_at=time_now,
+                         updated_at=time_now)
+    svc.save(_session(context))
+    return svc
+
+
+def service_update(context, service_id, values=None):
+
+    service = service_get(context, service_id)
+    if not service:
+        return
+
+    if values is None:
+        values = {}
+
+    values.update({'updated_at': timeutils.utcnow()})
+    service.update(values)
+    service.save(_session(context))
+    return service
+
+
+def service_delete(context, service_id):
+    session = _session(context)
+    session.query(models.Service).filter_by(
+        id=service_id).delete(synchronize_session='fetch')
+
+
+def service_get(context, service_id):
+    return model_query(context, models.Service).get(service_id)
+
+
+def service_get_by_host_and_binary(context, host, binary):
+    query = model_query(context, models.Service)
+    return query.filter_by(host=host).filter_by(binary=binary).first()
+
+
+def service_get_all(context):
+    return model_query(context, models.Service).all()

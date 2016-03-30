@@ -94,13 +94,9 @@ class CronScheduler(object):
         for job in jobs:
             if self._is_exist(job.id):
                 continue
-            task_name = "_%s_task" % (job.job_type)
-            task = getattr(self, task_name)
             LOG.info(_LI("Add job '%(job_id)s' to scheduler '%(id)s'."),
                      {'job_id': job.id, 'id': self.scheduler_id})
-            tg_type = self.CRON if job.job_type == self.DAILY else self.DAILY
-            self._add_job(task, job.id, trigger_type=tg_type,
-                          params=job.parameters)
+            self._add_job(job.id, job.job_type, **job.parameters)
 
         LOG.info(_LI("Initialise users from keystone."))
         users = user_mod.User.init_users(admin_context)
@@ -113,7 +109,7 @@ class CronScheduler(object):
                     continue
                 self._add_daily_job(user)
 
-    def _add_job(self, task, job_id, trigger_type='date', **kwargs):
+    def _add_job(self, job_id, task_type, **kwargs):
         """Add a job to scheduler by given data.
 
         :param str|unicode user_id: used as job_id
@@ -123,15 +119,17 @@ class CronScheduler(object):
         mg_time = cfg.CONF.scheduler.misfire_grace_time
         job_time_zone = cfg.CONF.scheduler.time_zone
         user_id = job_id.split('-')[1]
-        if trigger_type == 'date':
+        trigger_type = self.CRON if task_type == self.DAILY else self.DATE
+
+        if trigger_type == self.DATE:
             run_date = kwargs.get('run_date')
             if run_date is None:
                 msg = "Param run_date cannot be None for trigger type 'date'."
                 raise exception.InvalidInput(reason=msg)
-            self._scheduler.add_job(task, 'date',
+            self._scheduler.add_job(self._task, 'date',
                                     timezone=job_time_zone,
                                     run_date=run_date,
-                                    args=[user_id],
+                                    args=[user_id, task_type],
                                     id=job_id,
                                     misfire_grace_time=mg_time)
             return
@@ -141,23 +139,13 @@ class CronScheduler(object):
         minute = kwargs.get('minute')
         if not hour or not minute:
             hour, minute = self._generate_timer()
-        self._scheduler.add_job(task, 'cron',
+        self._scheduler.add_job(self._task, 'cron',
                                 timezone=job_time_zone,
                                 hour=hour,
                                 minute=minute,
-                                args=[user_id],
+                                args=[user_id, task_type],
                                 id=job_id,
                                 misfire_grace_time=mg_time)
-
-    def _modify_job(self, job_id, **changes):
-        """Modifies the properties of a single job.
-
-        Modifications are passed to this method as extra keyword arguments.
-
-        :param str|unicode job_id: the identifier of the job
-        """
-
-        self._scheduler.modify_job(job_id, **changes)
 
     def _remove_job(self, job_id):
         """Removes a job, preventing it from being run any more.
@@ -177,40 +165,19 @@ class CronScheduler(object):
         job = self._scheduler.get_job(job_id)
         return job is not None
 
-    def _notify_task(self, user_id):
+    def _task(self, user_id, task_type):
         admin_context = bilean_context.get_admin_context()
-        user = self.rpc_client.settle_account(
-            admin_context, user_id, task=self.NOTIFY)
-        user_obj = user_mod.User.from_dict(user)
-        try:
-            db_api.job_delete(
-                admin_context, self._generate_job_id(user_id, self.NOTIFY))
-        except exception.NotFound as e:
-            LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
-
-        self.update_jobs(user_obj)
-
-    def _daily_task(self, user_id):
-        admin_context = bilean_context.get_admin_context()
-        user = self.rpc_client.settle_account(
-            admin_context, user_id, task=self.DAILY)
-        user_obj = user_mod.User.from_dict(user)
-        self.update_jobs(user_obj)
-
-    def _freeze_task(self, user_id):
-        admin_context = bilean_context.get_admin_context()
-        user = self.rpc_client.settle_account(
-            admin_context, user_id, task=self.FREEZE)
-        user_obj = user_mod.User.from_dict(user)
-        try:
-            db_api.job_delete(
-                admin_context, self._generate_job_id(user_id, self.FREEZE))
-        except exception.NotFound as e:
-            LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
-        self.update_jobs(user_obj)
+        self.rpc_client.settle_account(
+            admin_context, user_id, task=task_type)
+        if task_type != self.DAILY:
+            try:
+                db_api.job_delete(
+                    admin_context, self._generate_job_id(user_id, task_type))
+            except exception.NotFound as e:
+                LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
 
     def _add_notify_job(self, user):
-        if not user.rate:
+        if user.rate == 0:
             return False
         total_seconds = user.balance / user.rate
         prior_notify_time = cfg.CONF.scheduler.prior_notify_time * 3600
@@ -219,7 +186,7 @@ class CronScheduler(object):
         run_date = timeutils.utcnow() + timedelta(seconds=notify_seconds)
         job_params = {'run_date': run_date}
         job_id = self._generate_job_id(user.id, self.NOTIFY)
-        self._add_job(self._notify_task, job_id, **job_params)
+        self._add_job(job_id, self.NOTIFY, **job_params)
         # Save job to database
         job = {'id': job_id,
                'job_type': self.NOTIFY,
@@ -229,13 +196,14 @@ class CronScheduler(object):
         db_api.job_create(admin_context, job)
 
     def _add_freeze_job(self, user):
-        if not user.rate:
+        if user.rate == 0:
             return False
         total_seconds = user.balance / user.rate
+        LOG.info(_LI("###########Fuck user: %s"), user.to_dict())
         run_date = timeutils.utcnow() + timedelta(seconds=total_seconds)
         job_params = {'run_date': run_date}
         job_id = self._generate_job_id(user.id, self.FREEZE)
-        self._add_job(self._freeze_task, job_id, **job_params)
+        self._add_job(job_id, self.FREEZE, **job_params)
         # Save job to database
         job = {'id': job_id,
                'job_type': self.FREEZE,
@@ -249,15 +217,7 @@ class CronScheduler(object):
         job_id = self._generate_job_id(user.id, self.DAILY)
         job_params = {'hour': random.randint(0, 23),
                       'minute': random.randint(0, 59)}
-        self._add_job(self._daily_task, job_id,
-                      trigger_type='cron', **job_params)
-        # Save job to database
-        job = {'id': job_id,
-               'job_type': self.DAILY,
-               'scheduler_id': self.scheduler_id,
-               'parameters': job_params}
-        admin_context = bilean_context.get_admin_context()
-        db_api.job_create(admin_context, job)
+        self._add_job(job_id, self.DAILY, **job_params)
         return True
 
     def _generate_timer(self):

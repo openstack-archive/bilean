@@ -13,11 +13,14 @@
 
 import functools
 import six
-import socket
+import time
 
+import eventlet
+from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
 from oslo_service import service
+from oslo_service import threadgroup
 
 from bilean.common import consts
 from bilean.common import context as bilean_context
@@ -28,9 +31,11 @@ from bilean.common.i18n import _LI
 from bilean.common import messaging as rpc_messaging
 from bilean.common import schema
 from bilean.common import utils
+from bilean.db import api as db_api
+from bilean.engine.actions import base as action_mod
+from bilean.engine import dispatcher
 from bilean.engine import environment
 from bilean.engine import event as event_mod
-from bilean.engine import lock as bilean_lock
 from bilean.engine import policy as policy_mod
 from bilean.engine import user as user_mod
 from bilean.resources import base as resource_base
@@ -53,6 +58,112 @@ def request_context(func):
     return wrapped
 
 
+class ThreadGroupManager(object):
+    '''Thread group manager.'''
+
+    def __init__(self):
+        super(ThreadGroupManager, self).__init__()
+        self.workers = {}
+        self.group = threadgroup.ThreadGroup()
+
+        # Create dummy service task, because when there is nothing queued
+        # on self.tg the process exits
+        self.add_timer(cfg.CONF.periodic_interval, self._service_task)
+
+        self.db_session = bilean_context.get_admin_context()
+
+    def _service_task(self):
+        '''Dummy task which gets queued on the service.Service threadgroup.
+
+        Without this service.Service sees nothing running i.e has nothing to
+        wait() on, so the process exits.
+
+        '''
+        pass
+
+    def start(self, func, *args, **kwargs):
+        '''Run the given method in a thread.'''
+
+        return self.group.add_thread(func, *args, **kwargs)
+
+    def start_action(self, worker_id, action_id=None):
+        '''Run the given action in a sub-thread.
+
+        Release the action lock when the thread finishes?
+
+        :param workder_id: ID of the worker thread; we fake workers using
+                           bilean engines at the moment.
+        :param action_id: ID of the action to be executed. None means the
+                          1st ready action will be scheduled to run.
+        '''
+        def release(thread, action_id):
+            '''Callback function that will be passed to GreenThread.link().'''
+            # Remove action thread from thread list
+            self.workers.pop(action_id)
+
+        timestamp = time.time()
+        if action_id is not None:
+            action = db_api.action_acquire(self.db_session, action_id,
+                                           worker_id, timestamp)
+        else:
+            action = db_api.action_acquire_first_ready(self.db_session,
+                                                       worker_id,
+                                                       timestamp)
+        if not action:
+            return
+
+        th = self.start(action_mod.ActionProc, self.db_session, action.id)
+        self.workers[action.id] = th
+        th.link(release, action.id)
+        return th
+
+    def cancel_action(self, action_id):
+        '''Cancel an action execution progress.'''
+        action = action_mod.Action.load(self.db_session, action_id)
+        action.signal(action.SIG_CANCEL)
+
+    def suspend_action(self, action_id):
+        '''Suspend an action execution progress.'''
+        action = action_mod.Action.load(self.db_session, action_id)
+        action.signal(action.SIG_SUSPEND)
+
+    def resume_action(self, action_id):
+        '''Resume an action execution progress.'''
+        action = action_mod.Action.load(self.db_session, action_id)
+        action.signal(action.SIG_RESUME)
+
+    def add_timer(self, interval, func, *args, **kwargs):
+        '''Define a periodic task to be run in the thread group.
+
+        The task will be executed in a separate green thread.
+        Interval is from cfg.CONF.periodic_interval
+        '''
+
+        self.group.add_timer(interval, func, *args, **kwargs)
+
+    def stop_timers(self):
+        self.group.stop_timers()
+
+    def stop(self, graceful=False):
+        '''Stop any active threads belong to this threadgroup.'''
+        # Try to stop all threads gracefully
+        self.group.stop(graceful)
+        self.group.wait()
+
+        # Wait for link()ed functions (i.e. lock release)
+        threads = self.group.threads[:]
+        links_done = dict((th, False) for th in threads)
+
+        def mark_done(gt, th):
+            links_done[th] = True
+
+        for th in threads:
+            th.link(mark_done, th)
+
+        while not all(links_done.values()):
+            eventlet.sleep()
+
+
 class EngineService(service.Service):
     """Manages the running instances from creation to destruction.
 
@@ -68,13 +179,36 @@ class EngineService(service.Service):
         super(EngineService, self).__init__()
         self.host = host
         self.topic = topic
+        self.dispatcher_topic = consts.ENGINE_DISPATCHER_TOPIC
 
         self.engine_id = None
+        self.TG = None
         self.target = None
         self._rpc_server = None
 
+    def _init_service(self):
+        admin_context = bilean_context.get_admin_context()
+        srv = db_api.service_get_by_host_and_binary(admin_context,
+                                                    self.host,
+                                                    'bilean-engine')
+        if srv is None:
+            srv = db_api.service_create(admin_context,
+                                        host=self.host,
+                                        binary='bilean-engine',
+                                        topic=self.topic)
+        self.engine_id = srv.id
+
     def start(self):
-        self.engine_id = socket.gethostname()
+        self._init_service()
+        self.TG = ThreadGroupManager()
+
+        # create a dispatcher RPC service for this engine.
+        self.dispatcher = dispatcher.Dispatcher(self,
+                                                self.dispatcher_topic,
+                                                consts.RPC_API_VERSION,
+                                                self.TG)
+        LOG.info(_LI("Starting dispatcher for engine %s"), self.engine_id)
+        self.dispatcher.start()
 
         LOG.info(_LI("Starting rpc server for engine: %s"), self.engine_id)
         target = oslo_messaging.Target(version=consts.RPC_API_VERSION,
@@ -83,6 +217,9 @@ class EngineService(service.Service):
         self.target = target
         self._rpc_server = rpc_messaging.get_rpc_server(target, self)
         self._rpc_server.start()
+
+        self.TG.add_timer(cfg.CONF.periodic_interval,
+                          self.service_manage_report)
 
         super(EngineService, self).start()
 
@@ -99,7 +236,21 @@ class EngineService(service.Service):
 
     def stop(self):
         self._stop_rpc_server()
+
+        # Notify dispatcher to stop all action threads it started.
+        LOG.info(_LI("Stopping dispatcher for engine %s"), self.engine_id)
+        self.dispatcher.stop()
+
+        self.TG.stop()
         super(EngineService, self).stop()
+
+    def service_manage_report(self):
+        admin_context = bilean_context.get_admin_context()
+        try:
+            db_api.service_update(admin_context, self.engine_id)
+        except Exception as ex:
+            LOG.error(_LE('Service %(id)s update failed: %(error)s'),
+                      {'id': self.engine_id, 'error': six.text_type(ex)})
 
     @request_context
     def user_list(self, cnxt, show_deleted=False, limit=None,
@@ -136,19 +287,12 @@ class EngineService(service.Service):
     @request_context
     def user_recharge(self, cnxt, user_id, value):
         """Do recharge for specify user."""
-        res = bilean_lock.user_lock_acquire(user_id, self.engine_id)
-        if not res:
-            LOG.error(_LE('Failed grabbing the lock for user %s'), res.user_id)
-            return False
-        try:
-            user = user_mod.User.load(cnxt, user_id=user_id)
-            user.do_recharge(cnxt, value)
-            # As user has been updated, the billing job for the user
-            # should to be updated too.
-            bilean_scheduler.notify(bilean_scheduler.UPDATE_JOBS,
-                                    user=user.to_dict())
-        finally:
-            bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
+        user = user_mod.User.load(cnxt, user_id=user_id)
+        user.do_recharge(cnxt, value)
+        # As user has been updated, the billing job for the user
+        # should to be updated too.
+        bilean_scheduler.notify(bilean_scheduler.UPDATE_JOBS,
+                                user=user.to_dict())
 
         return user.to_dict()
 
@@ -176,14 +320,8 @@ class EngineService(service.Service):
                                              'policy': policy_id}
             raise exception.BileanBadRequest(msg=msg)
 
-        res = bilean_lock.user_lock_acquire(user_id, self.engine_id)
-        if not res:
-            LOG.error(_LE('Failed grabbing the lock for user %s'), res.user_id)
-            return False
         user.policy_id = policy_id
         user.store(cnxt)
-        bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
-
         return user.to_dict()
 
     @request_context
@@ -274,44 +412,23 @@ class EngineService(service.Service):
 
     def resource_create(self, cnxt, resource_id, user_id, resource_type,
                         properties):
-        """Create resource by given database
+        """Create resource by given data."""
 
-        Cause new resource would update user's rate, user update and billing
-        would be done.
-
-        """
         resource = resource_base.Resource(resource_id, user_id, resource_type,
                                           properties)
-        # Find the exact rule of resource
-        admin_context = bilean_context.get_admin_context()
-        user = user_mod.User.load(admin_context, user_id=user_id)
-        user_policy = policy_mod.Policy.load(
-            admin_context, policy_id=user.policy_id)
-        rule = user_policy.find_rule(admin_context, resource_type)
 
-        # Update resource with rule_id and rate
-        resource.rule_id = rule.id
-        resource.rate = rule.get_price(resource)
+        params = {
+            'name': 'create_resource_%s' % resource_id,
+            'cause': action_mod.CAUSE_RPC,
+            'status': action_mod.Action.READY,
+            'inputs': resource.to_dict(),
+        }
 
-        # Update user with resource
-        res = bilean_lock.user_lock_acquire(user.id, self.engine_id)
-        if not res:
-            LOG.error(_LE('Failed grabbing the lock for user %s'), user.id)
-            return
-        try:
-            # Reload user to ensure the info is latest.
-            user = user_mod.User.load(admin_context, user_id=user_id)
-            user.update_with_resource(admin_context, resource)
-            resource.store(admin_context)
-
-            # As the rate of user has changed, the billing job for the user
-            # should change too.
-            bilean_scheduler.notify(bilean_scheduler.UPDATE_JOBS,
-                                    user=user.to_dict())
-        finally:
-            bilean_lock.user_lock_release(user.id, engine_id=self.engine_id)
-
-        return resource.to_dict()
+        action_id = action_mod.Action.create(cnxt, user_id,
+                                             consts.USER_CREATE_RESOURCE,
+                                             **params)
+        dispatcher.start_action(action_id=action_id)
+        LOG.info(_LI('Resource create action queued: %s'), action_id)
 
     @request_context
     def resource_list(self, cnxt, user_id=None, limit=None, marker=None,
@@ -336,59 +453,44 @@ class EngineService(service.Service):
         resource = resource_base.Resource.load(cnxt, resource_id=resource_id)
         return resource.to_dict()
 
-    def resource_update(self, cnxt, resource):
+    def resource_update(self, cnxt, user_id, resource):
         """Do resource update."""
-        admin_context = bilean_context.get_admin_context()
-        res = resource_base.Resource.load(
-            admin_context, resource_id=resource['id'])
-        old_rate = res.rate
-        res.properties = resource['properties']
-        rule = rule_base.Rule.load(admin_context, rule_id=res.rule_id)
-        res.rate = rule.get_price(res)
-        res.d_rate = res.rate - old_rate
 
-        result = bilean_lock.user_lock_acquire(res.user_id, self.engine_id)
-        if not result:
-            LOG.error(_LE('Failed grabbing the lock for user %s'), res.user_id)
-            return False
+        params = {
+            'name': 'update_resource_%s' % resource.get('id'),
+            'cause': action_mod.CAUSE_RPC,
+            'status': action_mod.Action.READY,
+            'inputs': resource,
+        }
+
+        action_id = action_mod.Action.create(cnxt, user_id,
+                                             consts.USER_UPDATE_RESOURCE,
+                                             **params)
+        dispatcher.start_action(action_id=action_id)
+        LOG.info(_LI('Resource update action queued: %s'), action_id)
+
+    def resource_delete(self, cnxt, user_id, resource_id):
+        """Delete a specific resource"""
+
         try:
-            user = user_mod.User.load(admin_context, res.user_id)
-            user.update_with_resource(admin_context, res, action='update')
-
-            res.store(admin_context)
-
-            bilean_scheduler.notify(bilean_scheduler.UPDATE_JOBS,
-                                    user=user.to_dict())
-        finally:
-            bilean_lock.user_lock_release(user.id, engine_id=self.engine_id)
-
-        return True
-
-    def resource_delete(self, cnxt, resource_id):
-        """Do resource delete"""
-        admin_context = bilean_context.get_admin_context()
-        try:
-            res = resource_base.Resource.load(
-                admin_context, resource_id=resource_id)
+            resource_base.Resource.load(cnxt, resource_id=resource_id)
         except exception.ResourceNotFound:
-            return False
+            LOG.error(_LE('The resource(%s) trying to delete not found.'),
+                      resource_id)
+            return
 
-        result = bilean_lock.user_lock_acquire(res.user_id, self.engine_id)
-        if not result:
-            LOG.error(_LE('Failed grabbing the lock for user %s'), res.user_id)
-            return False
-        try:
-            user = user_mod.User.load(admin_context, user_id=res.user_id)
-            user.update_with_resource(admin_context, res, action='delete')
+        params = {
+            'name': 'delete_resource_%s' % resource_id,
+            'cause': action_mod.CAUSE_RPC,
+            'status': action_mod.Action.READY,
+            'inputs': {'resource_id': resource_id},
+        }
 
-            bilean_scheduler.notify(bilean_scheduler.UPDATE_JOBS,
-                                    user=user.to_dict())
-
-            res.delete(admin_context)
-        finally:
-            bilean_lock.user_lock_release(user.id, engine_id=self.engine_id)
-
-        return True
+        action_id = action_mod.Action.create(cnxt, user_id,
+                                             consts.USER_DELETE_RESOURCE,
+                                             **params)
+        dispatcher.start_action(action_id=action_id)
+        LOG.info(_LI('Resource delete action queued: %s'), action_id)
 
     @request_context
     def event_list(self, cnxt, user_id=None, limit=None, marker=None,
@@ -553,14 +655,16 @@ class EngineService(service.Service):
         policy_mod.Policy.delete(cnxt, policy_id)
 
     def settle_account(self, cnxt, user_id, task=None):
-        res = bilean_lock.user_lock_acquire(user_id, self.engine_id)
-        if not res:
-            LOG.error(_LE('Failed grabbing the lock for user %s'), user_id)
-            return
-        try:
-            user = user_mod.User.load(cnxt, user_id=user_id)
-            user.settle_account(cnxt, task=task)
-        finally:
-            bilean_lock.user_lock_release(user_id, engine_id=self.engine_id)
+        params = {
+            'name': 'settle_account_%s' % user_id,
+            'cause': action_mod.CAUSE_RPC,
+            'status': action_mod.Action.READY,
+            'inputs': {'task': task},
+        }
 
-        return user.to_dict()
+        action_id = action_mod.Action.create(cnxt, user_id,
+                                             consts.USER_SETTLE_ACCOUNT,
+                                             **params)
+        self.TG.start_action(self.engine_id, action_id=action_id)
+
+        LOG.info(_LI('User settle_account action queued: %s'), action_id)
