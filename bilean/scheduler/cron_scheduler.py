@@ -199,7 +199,6 @@ class CronScheduler(object):
         if user.rate == 0:
             return False
         total_seconds = user.balance / user.rate
-        LOG.info(_LI("###########Fuck user: %s"), user.to_dict())
         run_date = timeutils.utcnow() + timedelta(seconds=total_seconds)
         job_params = {'run_date': run_date}
         job_id = self._generate_job_id(user.id, self.FREEZE)

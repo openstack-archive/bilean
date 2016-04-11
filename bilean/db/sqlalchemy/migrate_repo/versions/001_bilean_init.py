@@ -79,12 +79,10 @@ def upgrade(migrate_engine):
                           sqlalchemy.String(36),
                           sqlalchemy.ForeignKey('user.id'),
                           nullable=False),
-        sqlalchemy.Column('rule_id',
-                          sqlalchemy.String(36),
-                          sqlalchemy.ForeignKey('rule.id'),
-                          nullable=False),
+        sqlalchemy.Column('rule_id', sqlalchemy.String(36), nullable=False),
         sqlalchemy.Column('resource_type', sqlalchemy.String(36),
                           nullable=False),
+        sqlalchemy.Column('last_bill', sqlalchemy.DateTime),
         sqlalchemy.Column('properties', types.Dict),
         sqlalchemy.Column('rate', sqlalchemy.Float, nullable=False),
         sqlalchemy.Column('created_at', sqlalchemy.DateTime),
@@ -99,12 +97,41 @@ def upgrade(migrate_engine):
         sqlalchemy.Column('id', sqlalchemy.String(36),
                           primary_key=True, nullable=False),
         sqlalchemy.Column('user_id', sqlalchemy.String(36),
-                          sqlalchemy.ForeignKey('user.id'), nullable=False),
+                          nullable=False),
         sqlalchemy.Column('timestamp', sqlalchemy.DateTime),
-        sqlalchemy.Column('resource_type', sqlalchemy.String(36)),
         sqlalchemy.Column('action', sqlalchemy.String(36)),
+        sqlalchemy.Column('meta_data', types.Dict),
+        sqlalchemy.Column('level', sqlalchemy.Integer),
+        sqlalchemy.Column('status', sqlalchemy.String(255)),
+        sqlalchemy.Column('status_reason', sqlalchemy.Text),
+        mysql_engine='InnoDB',
+        mysql_charset='utf8'
+    )
+
+    consumption = sqlalchemy.Table(
+        'consumption', meta,
+        sqlalchemy.Column('id', sqlalchemy.String(36),
+                          primary_key=True, nullable=False),
+        sqlalchemy.Column('user_id', sqlalchemy.String(36)),
+        sqlalchemy.Column('resource_id', sqlalchemy.String(36)),
+        sqlalchemy.Column('resource_type', sqlalchemy.String(255)),
+        sqlalchemy.Column('start_time', sqlalchemy.DateTime),
+        sqlalchemy.Column('end_time', sqlalchemy.DateTime),
+        sqlalchemy.Column('rate', sqlalchemy.Float),
         sqlalchemy.Column('value', sqlalchemy.Float),
-        sqlalchemy.Column('deleted_at', sqlalchemy.DateTime),
+        sqlalchemy.Column('meta_data', types.Dict),
+        mysql_engine='InnoDB',
+        mysql_charset='utf8'
+    )
+
+    recharge = sqlalchemy.Table(
+        'recharge', meta,
+        sqlalchemy.Column('id', sqlalchemy.String(36),
+                          primary_key=True, nullable=False),
+        sqlalchemy.Column('user_id', sqlalchemy.String(36)),
+        sqlalchemy.Column('type', sqlalchemy.String(255)),
+        sqlalchemy.Column('timestamp', sqlalchemy.DateTime),
+        sqlalchemy.Column('meta_data', types.Dict),
         mysql_engine='InnoDB',
         mysql_charset='utf8'
     )
@@ -179,6 +206,8 @@ def upgrade(migrate_engine):
         rule,
         resource,
         event,
+        consumption,
+        recharge,
         action,
         dependency,
         user_lock,
