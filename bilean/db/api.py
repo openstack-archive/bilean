@@ -129,16 +129,14 @@ def event_get(context, event_id, project_safe=True):
     return IMPL.event_get(context, event_id, project_safe=project_safe)
 
 
-def event_get_all(context, user_id=None, show_deleted=False,
-                  filters=None, limit=None, marker=None,
-                  sort_keys=None, sort_dir=None, project_safe=True,
-                  start_time=None, end_time=None):
-    return IMPL.event_get_all(context, user_id=user_id,
-                              show_deleted=show_deleted,
-                              filters=filters, limit=limit,
-                              marker=marker, sort_keys=sort_keys,
-                              sort_dir=sort_dir, project_safe=project_safe,
-                              start_time=start_time, end_time=end_time)
+def event_get_all(context, limit=None, marker=None, sort_keys=None,
+                  sort_dir=None, filters=None, project_safe=True):
+    return IMPL.event_get_all(context, limit=limit,
+                              marker=marker,
+                              sort_keys=sort_keys,
+                              sort_dir=sort_dir,
+                              filters=filters,
+                              project_safe=project_safe)
 
 
 def event_create(context, values):
@@ -306,3 +304,42 @@ def service_get_by_host_and_binary(context, host, binary):
 
 def service_get_all(context):
     return IMPL.service_get_all(context)
+
+
+# consumptions
+def consumption_get(context, consumption_id, project_safe=True):
+    return IMPL.consumption_get(context, consumption_id,
+                                project_safe=project_safe)
+
+
+def consumption_get_all(context, limit=None, marker=None, sort_keys=None,
+                        sort_dir=None, filters=None, project_safe=True):
+    return IMPL.consumption_get_all(context, limit=limit,
+                                    marker=marker,
+                                    sort_keys=sort_keys,
+                                    sort_dir=sort_dir,
+                                    filters=filters,
+                                    project_safe=project_safe)
+
+
+def consumption_create(context, values):
+    return IMPL.consumption_create(context, values)
+
+
+# recharges
+def recharge_create(context, values):
+    return IMPL.recharge_create(context, values)
+
+
+def recharge_get(context, recharge_id, project_safe=True):
+    return IMPL.recharge_get(context, recharge_id, project_safe=project_safe)
+
+
+def recharge_get_all(context, limit=None, marker=None, sort_keys=None,
+                     sort_dir=None, filters=None, project_safe=True):
+    return IMPL.recharge_get_all(context, limit=limit,
+                                 marker=marker,
+                                 sort_keys=sort_keys,
+                                 sort_dir=sort_dir,
+                                 filters=filters,
+                                 project_safe=project_safe)

@@ -69,12 +69,16 @@ class CreateResourceTask(task.Task):
 
     def execute(self, context, resource, **kwargs):
         user = user_mod.User.load(context, user_id=resource.user_id)
-        user_policy = policy_mod.Policy.load(context, policy_id=user.policy_id)
-        rule = user_policy.find_rule(context, resource.resource_type)
+        try:
+            policy = policy_mod.Policy.load(context, policy_id=user.policy_id)
+        except exception.PolicyNotFound:
+            policy = policy_mod.Policy.load_default(context)
+        if policy is not None:
+            rule = policy.find_rule(context, resource.resource_type)
 
-        # Update resource with rule_id and rate
-        resource.rule_id = rule.id
-        resource.rate = rule.get_price(resource)
+            # Update resource with rule_id and rate
+            resource.rule_id = rule.id
+            resource.rate = rule.get_price(resource)
         resource.store(context)
 
     def revert(self, context, resource, result, **kwargs):

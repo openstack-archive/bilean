@@ -84,6 +84,18 @@ class Policy(object):
         return cls._from_db_record(policy)
 
     @classmethod
+    def load_default(cls, context, show_deleted=False):
+        '''Retrieve default policy from database.'''
+        filters = {'is_default': True}
+        policies = cls.load_all(context, filters=filters,
+                                show_deleted=show_deleted)
+        if len(policies) > 1:
+            raise exception.MultipleDefaultPolicy()
+
+        policy = None if len(policies) < 1 else policies[0]
+        return policy
+
+    @classmethod
     def load_all(cls, context, limit=None, marker=None,
                  sort_keys=None, sort_dir=None,
                  filters=None, show_deleted=False):
@@ -97,15 +109,6 @@ class Policy(object):
                                         show_deleted=show_deleted)
 
         return [cls._from_db_record(record) for record in records]
-
-    def find_rule(self, context, rtype):
-        '''Find the exact rule from self.rules by rtype'''
-
-        for rule in self.rules:
-            if rtype == rule['type'].split('-')[0]:
-                return rule_base.Rule.load(context, rule_id=rule['id'])
-
-        raise exception.RuleNotFound(rule_type=rtype)
 
     def to_dict(self):
         policy_dict = {
@@ -123,3 +126,12 @@ class Policy(object):
     def do_delete(self, context):
         db_api.policy_delete(context, self.id)
         return True
+
+    def find_rule(self, context, rtype):
+        '''Find the exact rule from self.rules by rtype'''
+
+        for rule in self.rules:
+            if rtype == rule['type'].split('-')[0]:
+                return rule_base.Rule.load(context, rule_id=rule['id'])
+
+        raise exception.RuleNotFound(rule_type=rtype)

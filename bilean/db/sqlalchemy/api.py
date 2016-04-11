@@ -351,32 +351,22 @@ def event_get(context, event_id, project_safe=True):
     return event
 
 
-def event_get_all(context, user_id=None, limit=None, marker=None,
-                  sort_keys=None, sort_dir=None, filters=None,
-                  start_time=None, end_time=None, project_safe=True,
-                  show_deleted=False):
-    query = soft_delete_aware_query(context, models.Event,
-                                    show_deleted=show_deleted)
+def event_get_all(context, limit=None, marker=None, sort_keys=None,
+                  sort_dir=None, filters=None, project_safe=True):
+    query = model_query(context, models.Event)
 
+    if context.is_admin:
+        project_safe = False
     if project_safe:
         query = query.filter_by(user_id=context.project)
-
-    elif user_id:
-        query = query.filter_by(user_id=user_id)
-
-    if start_time:
-        query = query.filter_by(models.Event.timestamp >= start_time)
-    if end_time:
-        query = query.filter_by(models.Event.timestamp <= end_time)
-
     if filters is None:
         filters = {}
 
     sort_key_map = {
-        consts.EVENT_ACTION: models.Event.action.key,
-        consts.EVENT_RESOURCE_TYPE: models.Event.resource_type.key,
+        consts.EVENT_LEVEL: models.Event.level.key,
         consts.EVENT_TIMESTAMP: models.Event.timestamp.key,
         consts.EVENT_USER_ID: models.Event.user_id.key,
+        consts.EVENT_STATUS: models.Event.status.key,
     }
     keys = _get_sort_keys(sort_keys, sort_key_map)
     query = db_filters.exact_filter(query, models.Event, filters)
@@ -875,3 +865,93 @@ def service_get_by_host_and_binary(context, host, binary):
 
 def service_get_all(context):
     return model_query(context, models.Service).all()
+
+
+# consumptions
+def consumption_get(context, consumption_id, project_safe=True):
+    query = model_query(context, models.Consumption)
+    consumption = query.get(consumption_id)
+
+    if consumption is None:
+        return None
+
+    if project_safe and context.project != consumption.user_id:
+        return None
+
+    return consumption
+
+
+def consumption_get_all(context, limit=None, marker=None, sort_keys=None,
+                        sort_dir=None, filters=None, project_safe=True):
+    query = model_query(context, models.Consumption)
+
+    if context.is_admin:
+        project_safe = False
+    if project_safe:
+        query = query.filter_by(user_id=context.project)
+    if filters is None:
+        filters = {}
+
+    sort_key_map = {
+        consts.CONSUMPTION_USER_ID: models.Consumption.user_id.key,
+        consts.CONSUMPTION_RESOURCE_TYPE: models.Consumption.resource_type.key,
+        consts.CONSUMPTION_START_TIME: models.Consumption.start_time.key,
+    }
+    keys = _get_sort_keys(sort_keys, sort_key_map)
+    query = db_filters.exact_filter(query, models.Consumption, filters)
+    return _paginate_query(context, query, models.Consumption,
+                           limit=limit, marker=marker,
+                           sort_keys=keys, sort_dir=sort_dir,
+                           default_sort_keys=['id']).all()
+
+
+def consumption_create(context, values):
+    consumption_ref = models.Consumption()
+    consumption_ref.update(values)
+    consumption_ref.save(_session(context))
+    return consumption_ref
+
+
+# recharges
+def recharge_create(context, values):
+    recharge_ref = models.Recharge()
+    recharge_ref.update(values)
+    recharge_ref.save(_session(context))
+    return recharge_ref
+
+
+def recharge_get(context, recharge_id, project_safe=True):
+    query = model_query(context, models.Recharge)
+    recharge = query.get(recharge_id)
+
+    if recharge is None:
+        return None
+
+    if project_safe and context.project != recharge.user_id:
+        return None
+
+    return recharge
+
+
+def recharge_get_all(context, limit=None, marker=None, sort_keys=None,
+                     sort_dir=None, filters=None, project_safe=True):
+    query = model_query(context, models.Recharge)
+
+    if context.is_admin:
+        project_safe = False
+    if project_safe:
+        query = query.filter_by(user_id=context.project)
+    if filters is None:
+        filters = {}
+
+    sort_key_map = {
+        consts.RECHARGE_USER_ID: models.Recharge.user_id.key,
+        consts.RECHARGE_TYPE: models.Recharge.type.key,
+        consts.RECHARGE_TIMESTAMP: models.Recharge.timestamp.key,
+    }
+    keys = _get_sort_keys(sort_keys, sort_key_map)
+    query = db_filters.exact_filter(query, models.Recharge, filters)
+    return _paginate_query(context, query, models.Recharge,
+                           limit=limit, marker=marker,
+                           sort_keys=keys, sort_dir=sort_dir,
+                           default_sort_keys=['id']).all()

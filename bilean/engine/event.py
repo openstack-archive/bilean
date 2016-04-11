@@ -11,29 +11,52 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import six
+import logging
 
 from bilean.common import exception
 from bilean.common.i18n import _
+from bilean.common.i18n import _LC
+from bilean.common.i18n import _LE
+from bilean.common.i18n import _LI
+from bilean.common.i18n import _LW
 from bilean.common import utils
 from bilean.db import api as db_api
-from bilean.resources import base as resource_base
 
-from oslo_log import log as logging
+from oslo_log import log
+from oslo_utils import reflection
 from oslo_utils import timeutils
 
-LOG = logging.getLogger(__name__)
+LOG = log.getLogger(__name__)
 
 
 class Event(object):
     """Class to deal with consumption record."""
 
-    def __init__(self, timestamp, **kwargs):
+    def __init__(self, timestamp, level, entity=None, **kwargs):
         self.timestamp = timestamp
+        self.level = level
+
+        self.id = kwargs.get('id')
         self.user_id = kwargs.get('user_id')
+
         self.action = kwargs.get('action')
-        self.resource_type = kwargs.get('resource_type')
-        self.value = kwargs.get('value', 0)
+        self.status = kwargs.get('status')
+        self.status_reason = kwargs.get('status_reason')
+
+        self.obj_id = kwargs.get('obj_id')
+        self.obj_type = kwargs.get('obj_type')
+        self.obj_name = kwargs.get('obj_name')
+        self.metadata = kwargs.get('metadata')
+
+        cntx = kwargs.get('context')
+        if cntx is not None:
+            self.user_id = cntx.project
+
+        if entity is not None:
+            self.obj_id = entity.id
+            self.obj_name = entity.name
+            e_type = reflection.get_class_name(entity, fully_qualified=False)
+            self.obj_type = e_type.upper()
 
     @classmethod
     def from_db_record(cls, record):
@@ -43,11 +66,14 @@ class Event(object):
             'id': record.id,
             'user_id': record.user_id,
             'action': record.action,
-            'resource_type': record.resource_type,
-            'action': record.action,
-            'value': record.value,
+            'status': record.status,
+            'status_reason': record.status_reason,
+            'obj_id': record.obj_id,
+            'obj_type': record.obj_type,
+            'obj_name': record.obj_name,
+            'metadata': record.meta_data,
         }
-        return cls(record.timestamp, **kwargs)
+        return cls(record.timestamp, record.level, **kwargs)
 
     @classmethod
     def load(cls, context, db_event=None, event_id=None, project_safe=True):
@@ -62,19 +88,16 @@ class Event(object):
         return cls.from_db_record(record)
 
     @classmethod
-    def load_all(cls, context, user_id=None, limit=None, marker=None,
-                 sort_keys=None, sort_dir=None, filters=None,
-                 start_time=None, end_time=None, project_safe=True,
-                 show_deleted=False,):
+    def load_all(cls, context, limit=None, marker=None, sort_keys=None,
+                 sort_dir=None, filters=None, project_safe=True):
         '''Retrieve all events from database.'''
 
-        records = db_api.event_get_all(context, user_id=user_id, limit=limit,
-                                       marker=marker, filters=filters,
-                                       sort_keys=sort_keys, sort_dir=sort_dir,
-                                       start_time=start_time,
-                                       end_time=end_time,
-                                       project_safe=project_safe,
-                                       show_deleted=show_deleted)
+        records = db_api.event_get_all(context, limit=limit,
+                                       marker=marker,
+                                       filters=filters,
+                                       sort_keys=sort_keys,
+                                       sort_dir=sort_dir,
+                                       project_safe=project_safe)
 
         for record in records:
             yield cls.from_db_record(record)
@@ -83,11 +106,15 @@ class Event(object):
         '''Store the event into database and return its ID.'''
         values = {
             'timestamp': self.timestamp,
+            'level': self.level,
             'user_id': self.user_id,
             'action': self.action,
-            'resource_type': self.resource_type,
-            'action': self.action,
-            'value': self.value,
+            'status': self.status,
+            'status_reason': self.status_reason,
+            'obj_id': self.obj_id,
+            'obj_type': self.obj_type,
+            'obj_name': self.obj_name,
+            'meta_data': self.metadata,
         }
 
         event = db_api.event_create(context, values)
@@ -95,79 +122,92 @@ class Event(object):
 
         return self.id
 
-    @classmethod
-    def from_dict(cls, **kwargs):
-        timestamp = kwargs.pop('timestamp')
-        return cls(timestamp, kwargs)
-
     def to_dict(self):
         evt = {
             'id': self.id,
+            'level': self.level,
             'user_id': self.user_id,
             'action': self.action,
-            'resource_type': self.resource_type,
-            'action': self.action,
-            'value': self.value,
+            'status': self.status,
+            'status_reason': self.status_reason,
+            'obj_id': self.obj_id,
+            'obj_type': self.obj_type,
+            'obj_name': self.obj_name,
             'timestamp': utils.format_time(self.timestamp),
+            'metadata': self.metadata,
         }
         return evt
 
 
-def record(context, user, timestamp=None, action='charge', cause_resource=None,
-           resource_action=None, extra_cost=0, value=0):
-    """Generate events for specify user
+def critical(context, entity, action, status=None, status_reason=None,
+             timestamp=None):
+    timestamp = timestamp or timeutils.utcnow()
+    event = Event(timestamp, logging.CRITICAL, entity,
+                  action=action, status=status, status_reason=status_reason,
+                  user_id=context.project)
+    event.store(context)
+    LOG.critical(_LC('%(name)s [%(id)s] - %(status)s: %(reason)s'),
+                 {'name': event.obj_name,
+                  'id': event.obj_id and event.obj_id[:8],
+                  'status': status,
+                  'reason': status_reason})
 
-    :param context: oslo.messaging.context
-    :param user: object user to mark event
-    :param action: action of event, include 'charge' and 'recharge'
-    :param cause_resource: object resource which triggered the action
-    :param resource_action: action of resource
-    :param extra_cost: extra cost of the resource
-    :param timestamp: timestamp when event occurs
-    :param value: value of recharge, needed when action is 'recharge'
-    """
-    if timestamp is None:
-        timestamp = timeutils.utcnow()
-    try:
-        if action == 'charge':
-            resources = resource_base.Resource.load_all(
-                context, user_id=user.id, project_safe=False)
-            seconds = (timestamp - user.last_bill).total_seconds()
-            res_mapping = {}
-            for resource in resources:
-                if cause_resource and resource.id == cause_resource.id:
-                    if resource_action == 'create':
-                        usage = extra_cost
-                    elif resource_action == 'update':
-                        usage = resource.rate * seconds + extra_cost
-                else:
-                    usage = resource.rate * seconds
-                if res_mapping.get(resource.resource_type) is None:
-                    res_mapping[resource.resource_type] = usage
-                else:
-                    res_mapping[resource.resource_type] += usage
 
-            if resource_action == 'delete':
-                usage = cause_resource.rate * seconds + extra_cost
-                if res_mapping.get(cause_resource.resource_type) is None:
-                    res_mapping[cause_resource.resource_type] = 0
-                res_mapping[cause_resource.resource_type] += usage
+def error(context, entity, action, status=None, status_reason=None,
+          timestamp=None):
+    timestamp = timestamp or timeutils.utcnow()
+    event = Event(timestamp, logging.ERROR, entity,
+                  action=action, status=status, status_reason=status_reason,
+                  user_id=context.project)
+    event.store(context)
+    LOG.error(_LE('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s'),
+              {'name': event.obj_name,
+               'id': event.obj_id and event.obj_id[:8],
+               'action': action,
+               'status': status,
+               'reason': status_reason})
 
-            for res_type in res_mapping.keys():
-                event = Event(timestamp,
-                              user_id=user.id,
-                              action=action,
-                              resource_type=res_type,
-                              value=res_mapping.get(res_type))
-                event.store(context)
-        elif action == 'recharge':
-            event = Event(timestamp,
-                          user_id=user.id,
-                          action=action,
-                          value=value)
-            event.store(context)
-        else:
-            msg = _("Unsupported event action '%s'.") % action
-            raise exception.BileanException(msg=msg)
-    except Exception as exc:
-        LOG.error(_("Error generate events: %s") % six.text_type(exc))
+
+def warning(context, entity, action, status=None, status_reason=None,
+            timestamp=None):
+    timestamp = timestamp or timeutils.utcnow()
+    event = Event(timestamp, logging.WARNING, entity,
+                  action=action, status=status, status_reason=status_reason,
+                  user_id=context.project)
+    event.store(context)
+    LOG.warning(_LW('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s'),
+                {'name': event.obj_name,
+                 'id': event.obj_id and event.obj_id[:8],
+                 'action': action,
+                 'status': status,
+                 'reason': status_reason})
+
+
+def info(context, entity, action, status=None, status_reason=None,
+         timestamp=None):
+    timestamp = timestamp or timeutils.utcnow()
+    event = Event(timestamp, logging.INFO, entity,
+                  action=action, status=status, status_reason=status_reason,
+                  user_id=context.project)
+    event.store(context)
+    LOG.info(_LI('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s'),
+             {'name': event.obj_name,
+              'id': event.obj_id and event.obj_id[:8],
+              'action': action,
+              'status': status,
+              'reason': status_reason})
+
+
+def debug(context, entity, action, status=None, status_reason=None,
+          timestamp=None):
+    timestamp = timestamp or timeutils.utcnow()
+    event = Event(timestamp, logging.DEBUG, entity,
+                  action=action, status=status, status_reason=status_reason,
+                  user_id=context.project)
+    event.store(context)
+    LOG.debug(_('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s'),
+              {'name': event.obj_name,
+               'id': event.obj_id and event.obj_id[:8],
+               'action': action,
+               'status': status,
+               'reason': status_reason})
