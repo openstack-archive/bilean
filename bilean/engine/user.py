@@ -19,7 +19,6 @@ from bilean.common.i18n import _LI
 from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.drivers import base as driver_base
-from bilean.engine import event as event_mod
 from bilean import notifier as bilean_notifier
 from bilean.resources import base as resource_base
 
@@ -38,6 +37,8 @@ class User(object):
     ) = (
         'INIT', 'FREE', 'ACTIVE', 'WARNING', 'FREEZE',
     )
+
+    ALLOW_DELAY_TIME = 10
 
     def __init__(self, user_id, **kwargs):
         self.id = user_id
@@ -212,66 +213,56 @@ class User(object):
             self.status_reason = reason
         self.store(context)
 
-    def update_with_resource(self, context, resource,
-                             resource_action='create'):
-        '''Update user with resource'''
+    def update_rate(self, context, delta_rate, timestamp=None, delayed_cost=0):
+        """Update user's rate and update user status.
 
-        now = timeutils.utcnow()
-        extra_cost = 0
-        if 'create' == resource_action:
-            d_rate = resource.rate
-            if resource.properties.get('created_at') is not None:
-                created_at = timeutils.parse_strtime(
-                    resource.properties.get('created_at'))
-                extra_seconds = (now - created_at).total_seconds()
-                extra_cost = d_rate * extra_seconds
-        elif 'delete' == resource_action:
-            d_rate = -resource.rate
-            if resource.properties.get('deleted_at') is not None:
-                deleted_at = timeutils.parse_strtime(
-                    resource.properties.get('deleted_at'))
-                extra_seconds = (now - deleted_at).total_seconds()
-                extra_cost = d_rate * extra_seconds
-        elif 'update' == resource_action:
-            d_rate = resource.d_rate
-            if resource.properties.get('updated_at') is not None:
-                updated_at = timeutils.parse_strtime(
-                    resource.properties.get('updated_at'))
-                extra_seconds = (now - updated_at).total_seconds()
-                extra_cost = d_rate * extra_seconds
+        :param context: The request context.
+        :param delta_rate: Delta rate to change.
+        :param timestamp: The time that resource action occurs.
+        :param delayed_cost: User's action may be delayed by some reason,
+                             adjust balance by delayed_cost.
+        """
 
-        self._settle_account(context, extra_cost=extra_cost,
-                             cause_resource=resource,
-                             resource_action=resource_action)
-        self._change_user_rate(context, d_rate)
-        self.store(context)
+        if delta_rate == 0 and delayed_cost == 0:
+            return
 
-    def _change_user_rate(self, context, d_rate):
-        # Update the rate of user
+        # Settle account before update rate
+        self._settle_account(context, timestamp=timestamp,
+                             delayed_cost=delayed_cost)
+
         old_rate = self.rate
-        new_rate = old_rate + d_rate
+        new_rate = old_rate + delta_rate
         if old_rate == 0 and new_rate > 0:
+            # Set last_bill when status change to 'ACTIVE' from 'FREE'
             self.last_bill = timeutils.utcnow()
+            reason = _("Status change to 'ACTIVE' cause resource creation.")
             self.status = self.ACTIVE
-        elif d_rate < 0:
+            self.status_reason = reason
+        elif delta_rate < 0:
             if new_rate == 0 and self.balance >= 0:
                 reason = _("Status change to 'FREE' because of resource "
-                           "deleting.")
+                           "deletion.")
                 self.status = self.FREE
                 self.status_reason = reason
-            elif self.status == self.WARNING and not self.notify_or_not():
+            elif self.status == self.WARNING and not self._notify_or_not():
                 reason = _("Status change from 'WARNING' to 'ACTIVE' "
-                           "because of resource deleting.")
+                           "because of resource deletion.")
                 self.status = self.ACTIVE
                 self.status_reason = reason
         self.rate = new_rate
+        self.store(context)
 
-    def do_recharge(self, context, value):
-        '''Do recharge for user.'''
-        if self.rate > 0 and self.status != self.FREEZE:
-            self._settle_account(context)
+    def do_recharge(self, context, value, recharge_type=None, timestamp=None,
+                    metadata=None):
+        """Recharge for user and update status.
+
+        param context: The request context.
+        param value: Recharge value.
+        param recharge_type: Rechage type, 'Recharge'|'System bonus'.
+        param timestamp: Record when recharge action occurs.
+        param metadata: Some other keyword.
+        """
         self.balance += value
-
         if self.status == self.INIT and self.balance > 0:
             self.status = self.FREE
             self.status_reason = "Recharged"
@@ -281,16 +272,22 @@ class User(object):
             self.status = self.FREE
             self.status_reason = reason
         elif self.status == self.WARNING:
-            if not self.notify_or_not():
+            if not self._notify_or_not():
                 reason = _("Status change from 'WARNING' to 'ACTIVE' because "
                            "of recharge.")
                 self.status = self.ACTIVE
                 self.status_reason = reason
-
         self.store(context)
-        event_mod.record(context, self, action='recharge', value=value)
 
-    def notify_or_not(self):
+        # Create recharge record
+        values = {'user_id': self.id,
+                  'value': value,
+                  'type': recharge_type,
+                  'timestamp': timestamp,
+                  'metadata': metadata}
+        db_api.recharge_create(context, values)
+
+    def _notify_or_not(self):
         '''Check if user should be notified.'''
         cfg.CONF.import_opt('prior_notify_time',
                             'bilean.scheduler.cron_scheduler',
@@ -305,21 +302,22 @@ class User(object):
         db_api.user_delete(context, self.id)
         return True
 
-    def _settle_account(self, context, cause_resource=None,
-                        resource_action=None, extra_cost=0):
-        if self.status not in [self.ACTIVE, self.WARNING]:
+    def _settle_account(self, context, timestamp=None, delayed_cost=0):
+        if self.rate == 0 and delayed_cost == 0:
             LOG.info(_LI("Ignore settlement action because user is in '%s' "
                          "status."), self.status)
             return
-        now = timeutils.utcnow()
-        total_seconds = (now - self.last_bill).total_seconds()
-        cost = self.rate * total_seconds + extra_cost
-        self.balance -= cost
-        event_mod.record(context, self, timestamp=now,
-                         cause_resource=cause_resource,
-                         resource_action=resource_action,
-                         extra_cost=extra_cost)
-        self.last_bill = now
+
+        # Calculate user's cost before last_bill and now
+        cost = 0
+        if self.rate > 0 and self.last_bill:
+            timestamp = timestamp or timeutils.utcnow()
+            total_seconds = (timestamp - self.last_bill).total_seconds()
+            cost = self.rate * total_seconds
+        total_cost = cost + delayed_cost
+
+        self.balance -= total_cost
+        self.last_bill = timestamp
 
     def settle_account(self, context, task=None):
         '''Settle account for user.'''
@@ -327,7 +325,7 @@ class User(object):
         notifier = bilean_notifier.Notifier()
         self._settle_account(context)
 
-        if task == 'notify' and self.notify_or_not():
+        if task == 'notify' and self._notify_or_not():
             self.status_reason = "The balance is almost used up"
             self.status = self.WARNING
             # Notify user

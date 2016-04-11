@@ -69,12 +69,16 @@ class CreateResourceTask(task.Task):
 
     def execute(self, context, resource, **kwargs):
         user = user_mod.User.load(context, user_id=resource.user_id)
-        user_policy = policy_mod.Policy.load(context, policy_id=user.policy_id)
-        rule = user_policy.find_rule(context, resource.resource_type)
+        try:
+            policy = policy_mod.Policy.load(context, policy_id=user.policy_id)
+        except exception.PolicyNotFound:
+            policy = policy_mod.Policy.load_default(context)
+        if policy is not None:
+            rule = policy.find_rule(context, resource.resource_type)
 
-        # Update resource with rule_id and rate
-        resource.rule_id = rule.id
-        resource.rate = rule.get_price(resource)
+            # Update resource with rule_id and rate
+            resource.rule_id = rule.id
+            resource.rate = rule.get_price(resource)
         resource.store(context)
 
     def revert(self, context, resource, result, **kwargs):
@@ -94,7 +98,7 @@ class UpdateResourceTask(task.Task):
         resource.properties = values.get('properties')
         rule = rule_base.Rule.load(context, rule_id=resource.rule_id)
         resource.rate = rule.get_price(resource)
-        resource.d_rate = resource.rate - old_rate
+        resource.delta_rate = resource.rate - old_rate
         resource.store(context)
 
     def revert(self, context, resource, resource_bak, result, **kwargs):
@@ -120,6 +124,25 @@ class DeleteResourceTask(task.Task):
 
         resource.deleted_at = None
         resource.store(context)
+
+
+class CreateConsumptionTask(task.Task):
+    """Generate consumption record and store to db."""
+
+    def execute(self, context, resource, *args, **kwargs):
+        consumption = resource.consumption
+        if consumption is not None:
+            consumption.store(context)
+
+    def revert(self, context, resource, result, *args, **kwargs):
+        if isinstance(result, ft.Failure):
+            LOG.error(_LE("Error when storing consumption of resource: %s"),
+                      resource.id)
+            return
+
+        consumption = resource.consumption
+        if consumption is not None:
+            consumption.delete(context)
 
 
 class LoadUserTask(task.Task):
@@ -150,17 +173,18 @@ class SettleAccountTask(task.Task):
         user.store(context)
 
 
-class UpdateUserWithResourceTask(task.Task):
-    """Update user with resource actions."""
+class UpdateUserRateTask(task.Task):
+    """Update user's rate ."""
 
-    def execute(self, context, user_obj, user_bak, resource,
-                resource_action, **kwargs):
-        user_obj.update_with_resource(context, resource,
-                                      resource_action=resource_action)
+    def execute(self, context, user_obj, user_bak, resource, *args, **kwargs):
+        user_obj.update_rate(context, resource.delta_rate,
+                             timestamp=resource.last_bill,
+                             delayed_cost=resource.delayed_cost)
 
-    def revert(self, context, user_bak, result, **kwargs):
+    def revert(self, context, user_obj, user_bak, resource, result,
+               *args, **kwargs):
         if isinstance(result, ft.Failure):
-            LOG.error(_LE("Error when updating user: %s"), user_bak.get('id'))
+            LOG.error(_LE("Error when updating user: %s"), user_obj.id)
             return
 
         # Restore user
@@ -196,25 +220,72 @@ def get_settle_account_flow(context, user_id, task=None):
     return taskflow.engines.load(flow, store=kwargs)
 
 
-def get_flow(context, resource, resource_action):
-    """Constructs and returns resource task flow."""
+def get_create_resource_flow(context, user_id, resource):
+    """Constructs and returns user task flow.
 
-    flow_name = resource.user_id + '_' + resource_action + '_resource'
+    :param context: The request context.
+    :param user_id: The ID of user.
+    :param resource: Object resource to create.
+    """
+
+    flow_name = user_id + '_create_resource'
     flow = linear_flow.Flow(flow_name)
     kwargs = {
         'context': context,
-        'user_id': resource.user_id,
+        'user_id': user_id,
         'resource': resource,
-        'resource_action': resource_action,
     }
-    if resource_action == 'create':
-        flow.add(CreateResourceTask())
-    if resource_action == 'update':
-        flow.add(UpdateResourceTask())
-        kwargs['resource_bak'] = resource.to_dict()
-    elif resource_action == 'delete':
-        flow.add(DeleteResourceTask())
-    flow.add(LoadUserTask(),
-             UpdateUserWithResourceTask(),
+    flow.add(CreateResourceTask(),
+             LoadUserTask(),
+             UpdateUserRateTask(),
+             UpdateUserJobsTask())
+    return taskflow.engines.load(flow, store=kwargs)
+
+
+def get_delete_resource_flow(context, user_id, resource):
+    """Constructs and returns user task flow.
+
+    :param context: The request context.
+    :param user_id: The ID of user.
+    :param resource: Object resource to delete.
+    """
+
+    flow_name = user_id + '_delete_resource'
+    flow = linear_flow.Flow(flow_name)
+    kwargs = {
+        'context': context,
+        'user_id': user_id,
+        'resource': resource,
+    }
+    flow.add(DeleteResourceTask(),
+             CreateConsumptionTask(),
+             LoadUserTask(),
+             UpdateUserRateTask(),
+             UpdateUserJobsTask())
+    return taskflow.engines.load(flow, store=kwargs)
+
+
+def get_update_resource_flow(context, user_id, resource, values):
+    """Constructs and returns user task flow.
+
+    :param context: The request context.
+    :param user_id: The ID of user.
+    :param resource: Object resource to update.
+    :param values: The values to update.
+    """
+
+    flow_name = user_id + '_update_resource'
+    flow = linear_flow.Flow(flow_name)
+    kwargs = {
+        'context': context,
+        'user_id': user_id,
+        'resource': resource,
+        'resource_bak': resource.to_dict(),
+        'values': values,
+    }
+    flow.add(UpdateResourceTask(),
+             CreateConsumptionTask(),
+             LoadUserTask(),
+             UpdateUserRateTask(),
              UpdateUserJobsTask())
     return taskflow.engines.load(flow, store=kwargs)

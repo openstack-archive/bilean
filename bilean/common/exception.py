@@ -120,6 +120,10 @@ class PolicyNotFound(BileanException):
     msg_fmt = _("The policy (%(policy)s) could not be found.")
 
 
+class MultipleDefaultPolicy(BileanException):
+    msg_fmt = _("More than one default policies found.")
+
+
 class UserNotFound(BileanException):
     msg_fmt = _("The user (%(user)s) could not be found.")
 
@@ -157,6 +161,10 @@ class RequestLimitExceeded(BileanException):
 
 class EventNotFound(BileanException):
     msg_fmt = _("The event (%(event)s) could not be found.")
+
+
+class ConsumptionNotFound(BileanException):
+    msg_fmt = _("The consumption (%(consumption)s) could not be found.")
 
 
 class InvalidResource(BileanException):

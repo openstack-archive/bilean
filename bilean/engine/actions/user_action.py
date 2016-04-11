@@ -17,8 +17,10 @@ from bilean.common.i18n import _
 from bilean.common.i18n import _LE
 from bilean.common.i18n import _LI
 from bilean.engine.actions import base
+from bilean.engine import event as EVENT
 from bilean.engine.flows import flow as bilean_flow
 from bilean.engine import lock as bilean_lock
+from bilean.engine import user as user_mod
 from bilean.resources import base as resource_base
 
 from oslo_log import log as logging
@@ -37,12 +39,28 @@ class UserAction(base.Action):
         'USER_SETTLE_ACCOUNT',
     )
 
+    def __init__(self, target, action, context, **kwargs):
+        """Constructor for a user action object.
+
+        :param target: ID of the target user object on which the action is to
+                       be executed.
+        :param action: The name of the action to be executed.
+        :param context: The context used for accessing the DB layer.
+        :param dict kwargs: Additional parameters that can be passed to the
+                            action.
+        """
+        super(UserAction, self).__init__(target, action, context, **kwargs)
+
+        try:
+            self.user = user_mod.User.load(self.context, user_id=self.target)
+        except Exception:
+            self.user = None
+
     def do_create_resource(self):
         resource = resource_base.Resource.from_dict(self.inputs)
         try:
-            flow_engine = bilean_flow.get_flow(self.context,
-                                               resource,
-                                               'create')
+            flow_engine = bilean_flow.get_create_resource_flow(
+                self.context, self.target, resource)
             with bilean_flow.DynamicLogListener(flow_engine, logger=LOG):
                 flow_engine.run()
         except Exception as ex:
@@ -55,7 +73,8 @@ class UserAction(base.Action):
 
     def do_update_resource(self):
         try:
-            resource_id = self.inputs.get('id')
+            values = self.inputs
+            resource_id = values.pop('id', None)
             resource = resource_base.Resource.load(
                 self.context, resource_id=resource_id)
         except exception.ResourceNotFound:
@@ -64,9 +83,8 @@ class UserAction(base.Action):
             return self.RES_ERROR, _('Resource not found.')
 
         try:
-            flow_engine = bilean_flow.get_flow(self.context,
-                                               resource,
-                                               'update')
+            flow_engine = bilean_flow.get_update_resource_flow(
+                self.context, self.target, resource, values)
             with bilean_flow.DynamicLogListener(flow_engine, logger=LOG):
                 flow_engine.run()
         except Exception as ex:
@@ -89,9 +107,8 @@ class UserAction(base.Action):
             return self.RES_ERROR, _('Resource not found.')
 
         try:
-            flow_engine = bilean_flow.get_flow(self.context,
-                                               resource,
-                                               'delete')
+            flow_engine = bilean_flow.get_delete_resource_flow(
+                self.context, self.target, resource)
             with bilean_flow.DynamicLogListener(flow_engine, logger=LOG):
                 flow_engine.run()
         except Exception as ex:
@@ -126,6 +143,7 @@ class UserAction(base.Action):
 
         if method is None:
             reason = _('Unsupported action: %s') % self.action
+            EVENT.error(self.context, self.user, self.action, 'Failed', reason)
             return self.RES_ERROR, reason
 
         return method()
