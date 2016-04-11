@@ -22,6 +22,7 @@ from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common.i18n import _LE
 from bilean.db import api as db_api
+from bilean.engine import event as EVENT
 
 wallclock = time.time
 LOG = logging.getLogger(__name__)
@@ -262,12 +263,12 @@ class Action(object):
             expected_statuses = (self.SUSPENDED)
 
         if self.status not in expected_statuses:
-            msg = _LE("Action (%(action)s) is in unexpected status "
-                      "(%(actual)s) while expected status should be one of "
-                      "(%(expected)s).") % dict(action=self.id,
-                                                expected=expected_statuses,
-                                                actual=self.status)
-            LOG.error(msg)
+            reason = _("Action (%(action)s) is in unexpected status "
+                       "(%(actual)s) while expected status should be one of "
+                       "(%(expected)s).") % dict(action=self.id,
+                                                 expected=expected_statuses,
+                                                 actual=self.status)
+            EVENT.error(self.context, self, cmd, status_reason=reason)
             return
 
         db_api.action_signal(self.context, self.id, cmd)
@@ -311,6 +312,13 @@ class Action(object):
             # We abandon it and then notify other dispatchers to execute it
             db_api.action_abandon(self.context, self.id)
 
+        if status == self.SUCCEEDED:
+            EVENT.info(self.context, self, self.action, status, reason)
+        elif status == self.READY:
+            EVENT.warning(self.context, self, self.action, status, reason)
+        else:
+            EVENT.error(self.context, self, self.action, status, reason)
+
         self.status = status
         self.status_reason = reason
 
@@ -327,6 +335,7 @@ class Action(object):
     def _check_signal(self):
         # Check timeout first, if true, return timeout message
         if self.timeout is not None and self.is_timeout():
+            EVENT.debug(self.context, self, self.action, 'TIMEOUT')
             return self.RES_TIMEOUT
 
         result = db_api.action_signal_query(self.context, self.id)

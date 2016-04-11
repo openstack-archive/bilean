@@ -90,11 +90,12 @@ RULE_KEYS = (
 )
 
 EVENT_KEYS = (
-    EVENT_ID, EVENT_USER_ID, EVENT_ACTION, EVENT_TIMESTAMP,
-    EVENT_RESOURCE_TYPE, EVENT_VALUE, EVENT_DELETED_AT,
+    EVENT_ID, EVENT_TIMESTAMP, EVENT_OBJ_ID, EVENT_OBJ_TYPE, EVENT_ACTION,
+    EVENT_USER_ID, EVENT_LEVEL, EVENT_STATUS, EVENT_STATUS_REASON,
+    EVENT_METADATA,
 ) = (
-    'id', 'user_id', 'action', 'timestamp',
-    'resource_type', 'value', 'deleted_at',
+    'id', 'timestamp', 'obj_id', 'obj_type', 'action',
+    'user_id', 'level', 'status', 'status_reason', 'metadata',
 )
 
 POLICY_KEYS = (
@@ -103,4 +104,27 @@ POLICY_KEYS = (
 ) = (
     'id', 'name', 'is_default', 'rules', 'metadata',
     'created_at', 'updated_at', 'deleted_at',
+)
+
+CONSUMPTION_KEYS = (
+    CONSUMPTION_ID, CONSUMPTION_USER_ID, CONSUMPTION_RESOURCE_ID,
+    CONSUMPTION_RESOURCE_TYPE, CONSUMPTION_START_TIME, CONSUMPTION_END_TIME,
+    CONSUMPTION_RATE, CONSUMPTION_VALUE, CONSUMPTION_METADATA,
+) = (
+    'id', 'user_id', 'resource_id',
+    'resource_type', 'start_time', 'end_time',
+    'rate', 'value', 'metadata',
+)
+
+RECHARGE_KEYS = (
+    RECHARGE_ID, RECHARGE_USER_ID, RECHARGE_TYPE, RECHARGE_TIMESTAMP,
+    RECHARGE_METADATA,
+) = (
+    'id', 'user_id', 'type', 'timestamp', 'metadata',
+)
+
+RECHARGE_TYPES = (
+    SELF_RECHARGE, SYSTEM_BONUS,
+) = (
+    'Recharge', 'System bonus',
 )
