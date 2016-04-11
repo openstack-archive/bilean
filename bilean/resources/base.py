@@ -16,6 +16,8 @@ from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.engine import environment
 
+from oslo_utils import timeutils
+
 
 class Resource(object):
     """A resource is an object that refers to a physical resource.
@@ -25,8 +27,16 @@ class Resource(object):
     something else.
     """
 
+    ALLOW_DELAY_TIME = 10
+
     def __new__(cls, id, user_id, res_type, properties, **kwargs):
-        """Create a new resource of the appropriate class."""
+        """Create a new resource of the appropriate class.
+
+        :param id: The resource ID comes same as the real resource.
+        :param user_id: The user ID the resource belongs to.
+        :param properties: The properties of resource.
+        :param dict kwargs: Other keyword arguments for the resource.
+        """
         if cls != Resource:
             ResourceClass = cls
         else:
@@ -42,11 +52,16 @@ class Resource(object):
 
         self.rule_id = kwargs.get('rule_id')
         self.rate = kwargs.get('rate', 0)
-        self.d_rate = 0
+        self.last_bill = kwargs.get('last_bill')
 
         self.created_at = kwargs.get('created_at')
         self.updated_at = kwargs.get('updated_at')
         self.deleted_at = kwargs.get('deleted_at')
+
+        # Properties pass to user to help settle account, not store to db
+        self.delta_rate = 0
+        self.delayed_cost = 0
+        self.consumption = None
 
     def store(self, context):
         """Store the resource record into database table."""
@@ -63,17 +78,83 @@ class Resource(object):
         }
 
         if self.created_at:
-            db_api.resource_update(context, self.id, values)
+            self._update(context, values)
         else:
             values.update(id=self.id)
-            resource = db_api.resource_create(context, values)
-            self.created_at = resource.created_at
+            self._create(context, values)
 
         return self.id
 
     def delete(self, context, soft_delete=True):
         '''Delete resource from db.'''
+        self._delete(context, soft_delete=soft_delete)
+
+    def _create(self, context, values):
+        resource = db_api.resource_create(context, values)
+        self.created_at = resource.created_at
+        self.delta_rate = self.rate
+        now = timeutils.utcnow()
+        self.last_bill = now
+        if self.delta_rate == 0:
+            return
+        create_time = self.properties.get('created_at')
+        if create_time is not None:
+            created_at = timeutils.parse_strtime(create_time)
+            delayed_seconds = (now - created_at).total_seconds()
+            # Engine handle resource creation is delayed because of something,
+            # we suppose less than ALLOW_DELAY_TIME is acceptable.
+            if delayed_seconds > ALLOW_DELAY_TIME:
+                self.delayed_cost = self.delta_rate * delayed_seconds
+                self.last_bill = created_at
+
+    def _update(self, context, values):
+        db_api.resource_update(context, self.id, values)
+        if self.delta_rate == 0:
+            return
+        update_time = self.properties.get('updated_at')
+        now = timeutils.utcnow()
+        updated_at = now
+        if update_time is not None:
+            updated_at = timeutils.parse_strtime(update_time)
+            delayed_seconds = (now - updated_at).total_seconds()
+            # Engine handle resource update is delayed because of something,
+            # we suppose less than ALLOW_DELAY_TIME is acceptable.
+            if delayed_seconds > ALLOW_DELAY_TIME:
+                self.delayed_cost = self.delta_rate * delayed_seconds
+
+        # Generate consumption between lass bill and update time
+        old_rate = self.rate - self.delta_rate
+        cost = (updated_at - self.last_bill).total_seconds() * old_rate
+        self.consumption = {'start_time': self.last_bill,
+                            'end_time': updated_at,
+                            'rate': old_rate,
+                            'cost': cost}
+        self.last_bill = updated_at
+
+    def _delete(self, context, soft_delete=True):
         db_api.resource_delete(context, self.id, soft_delete=soft_delete)
+
+        self.delta_rate = - self.rate
+        if self.delta_rate == 0:
+            return
+        delete_time = self.properties.get('deleted_at')
+        now = timeutils.utcnow()
+        deleted_at = now
+        if delete_time is not None:
+            deleted_at = timeutils.parse_strtime(delete_time)
+            delayed_seconds = (now - deleted_at).total_seconds()
+            # Engine handle resource deletion is delayed because of something,
+            # we suppose less than ALLOW_DELAY_TIME is acceptable.
+            if delayed_seconds > ALLOW_DELAY_TIME:
+                self.delayed_cost = self.delta_rate * delayed_seconds
+
+        # Generate consumption between lass bill and delete time
+        cost = (deleted_at - self.last_bill).total_seconds() * self.rate
+        self.consumption = {'start_time': self.last_bill,
+                            'end_time': deleted_at,
+                            'rate': self.rate,
+                            'cost': cost}
+        self.last_bill = deleted_at
 
     @classmethod
     def _from_db_record(cls, record):

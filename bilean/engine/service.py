@@ -21,6 +21,7 @@ from oslo_log import log as logging
 import oslo_messaging
 from oslo_service import service
 from oslo_service import threadgroup
+from oslo_utils import timeutils
 
 from bilean.common import consts
 from bilean.common import context as bilean_context
@@ -287,10 +288,19 @@ class EngineService(service.Service):
         return user.to_dict()
 
     @request_context
-    def user_recharge(self, cnxt, user_id, value):
+    def user_recharge(self, cnxt, user_id, value, recharge_type=None,
+                      timestamp=None, metadata=None):
         """Do recharge for specify user."""
-        user = user_mod.User.load(cnxt, user_id=user_id)
-        user.do_recharge(cnxt, value)
+        try:
+            user = user_mod.User.load(cnxt, user_id=user_id)
+        except exception.UserNotFound as ex:
+            raise exception.BileanBadRequest(msg=six.text_type(ex))
+
+        recharge_type = recharge_type or consts.SELF_RECHARGE
+        timestamp = timestamp or timeutils.utcnow()
+        metadata = metadata or {}
+        user.do_recharge(cnxt, value, recharge_type=recharge_type,
+                         timestamp=timestamp, metadata=metadata)
         # As user has been updated, the billing job for the user
         # should to be updated too.
         bilean_scheduler.notify(bilean_scheduler.UPDATE_JOBS,

@@ -123,7 +123,7 @@ def get_service_context(set_project_id=False, **kwargs):
     if set_project_id:
         project = identity_service().conn.session.get_project_id()
         service_creds.update(project=project)
-    return RequestContext(**service_creds)
+    return RequestContext(is_admin=True, **service_creds)
 
 
 def get_admin_context(show_deleted=False):
