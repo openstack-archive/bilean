@@ -180,6 +180,7 @@ def user_get_all(context, show_deleted=False, limit=None,
     sort_key_map = {
         consts.USER_CREATED_AT: models.User.created_at.key,
         consts.USER_UPDATED_AT: models.User.updated_at.key,
+        consts.USER_NAME: models.User.name.key,
         consts.USER_BALANCE: models.User.balance.key,
         consts.USER_STATUS: models.User.status.key,
     }
