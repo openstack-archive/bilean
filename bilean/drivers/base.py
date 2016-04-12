@@ -17,6 +17,7 @@ from oslo_config import cfg
 from bilean.engine import environment
 
 CONF = cfg.CONF
+CONF.import_opt('cloud_backend', 'bilean.common.config')
 
 
 class DriverBase(object):

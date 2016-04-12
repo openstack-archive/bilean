@@ -29,7 +29,7 @@ KEYSTONE_EVENTS = ['identity.project.created',
 class EventsNotificationEndpoint(object):
     def __init__(self):
         self.resource_converter = converter.setup_resources()
-        self.cnxt = context.get_admin_context()
+        self.cnxt = context.get_service_context(set_project_id=True)
         super(EventsNotificationEndpoint, self).__init__()
 
     def info(self, ctxt, publisher_id, event_type, payload, metadata):

@@ -109,7 +109,7 @@ class RequestContext(base_context.RequestContext):
         return cls(**values)
 
 
-def get_service_context(**kwargs):
+def get_service_context(set_project_id=False, **kwargs):
     '''An abstraction layer for getting service credential.
 
     There could be multiple cloud backends for bilean to use. This
@@ -120,6 +120,9 @@ def get_service_context(**kwargs):
     '''
     identity_service = driver_base.BileanDriver().identity
     service_creds = identity_service.get_service_credentials(**kwargs)
+    if set_project_id:
+        project = identity_service().conn.session.get_project_id()
+        service_creds.update(project=project)
     return RequestContext(**service_creds)
 
 
