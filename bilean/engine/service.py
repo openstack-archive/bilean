@@ -267,7 +267,7 @@ class EngineService(service.Service):
         return [user.to_dict() for user in users]
 
     def user_create(self, cnxt, user_id, balance=None, credit=None,
-                    status=None):
+                    status=consts.USER_INIT):
         """Create a new user from notification."""
         user = user_mod.User(user_id, balance=balance, credit=credit,
                              status=status)
