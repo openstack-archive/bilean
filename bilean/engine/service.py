@@ -269,6 +269,8 @@ class EngineService(service.Service):
     def user_create(self, cnxt, user_id, balance=None, credit=None,
                     status=None):
         """Create a new user from notification."""
+        if status is None:
+            status = consts.USER_INIT
         user = user_mod.User(user_id, balance=balance, credit=credit,
                              status=status)
         user.store(cnxt)

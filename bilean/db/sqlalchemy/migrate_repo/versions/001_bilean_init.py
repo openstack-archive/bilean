@@ -24,6 +24,7 @@ def upgrade(migrate_engine):
         'user', meta,
         sqlalchemy.Column('id', sqlalchemy.String(36), primary_key=True,
                           nullable=False),
+        sqlalchemy.Column('name', sqlalchemy.String(255)),
         sqlalchemy.Column('policy_id',
                           sqlalchemy.String(36),
                           sqlalchemy.ForeignKey('policy.id'),

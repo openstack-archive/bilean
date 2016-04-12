@@ -41,6 +41,7 @@ class User(object):
 
     def __init__(self, user_id, **kwargs):
         self.id = user_id
+        self.name = kwargs.get('name')
         self.policy_id = kwargs.get('policy_id')
         self.balance = kwargs.get('balance', 0)
         self.rate = kwargs.get('rate', 0.0)
@@ -54,10 +55,14 @@ class User(object):
         self.updated_at = kwargs.get('updated_at')
         self.deleted_at = kwargs.get('deleted_at')
 
+        if self.name is None:
+            self.name = self._retrieve_name(self.id)
+
     def store(self, context):
         """Store the user record into database table."""
 
         values = {
+            'name': self.name,
             'policy_id': self.policy_id,
             'balance': self.balance,
             'rate': self.rate,
@@ -90,16 +95,26 @@ class User(object):
                           six.text_type(ex))
             return False
 
-        project_ids = [project.id for project in projects]
         users = cls.load_all(context)
         user_ids = [user.id for user in users]
-        for pid in project_ids:
-            if pid not in user_ids:
-                user = cls(pid, status=cls.INIT,
+        for project in projects:
+            if project.id not in user_ids:
+                user = cls(project.id, name=project.name, status=cls.INIT,
                            status_reason='Init from keystone')
                 user.store(context)
                 users.append(user)
         return users
+
+    def _retrieve_name(cls, user_id):
+        '''Get user name form keystone.'''
+        keystoneclient = driver_base.BileanDriver().identity()
+        try:
+            project = keystoneclient.project_find(user_id)
+        except exception.InternalError as ex:
+            LOG.exception(_('Failed in retrieving project: %s'),
+                          six.text_type(ex))
+            return None
+        return project.name
 
     @classmethod
     def _from_db_record(cls, record):
@@ -108,6 +123,7 @@ class User(object):
         :param record: a DB user object that contains all fields;
         '''
         kwargs = {
+            'name': record.name,
             'policy_id': record.policy_id,
             'balance': record.balance,
             'rate': record.rate,
@@ -175,6 +191,7 @@ class User(object):
     def to_dict(self):
         user_dict = {
             'id': self.id,
+            'name': self.name,
             'policy_id': self.policy_id,
             'balance': self.balance,
             'rate': self.rate,

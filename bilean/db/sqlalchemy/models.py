@@ -97,6 +97,7 @@ class User(BASE, BileanBase, SoftDelete, StateAware, models.TimestampMixin):
     __tablename__ = 'user'
 
     id = sqlalchemy.Column(sqlalchemy.String(36), primary_key=True)
+    name = sqlalchemy.Column(sqlalchemy.String(255))
     policy_id = sqlalchemy.Column(
         sqlalchemy.String(36),
         sqlalchemy.ForeignKey('policy.id'),

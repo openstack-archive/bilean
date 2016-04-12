@@ -17,7 +17,7 @@ MAX_VALUE = 100000000
 MIN_RESOURCE_NUM = 1
 MAX_RESOURCE_NUM = 1000
 
-RPC_ATTRs = (
+RPC_ATTRS = (
     ENGINE_TOPIC,
     SCHEDULER_TOPIC,
     NOTIFICATION_TOPICS,
@@ -29,6 +29,12 @@ RPC_ATTRs = (
     'billing_notifications',
     'bilean_engine_dispatcher',
     '1.0',
+)
+
+USER_STATUSES = (
+    USER_INIT, USER_FREE, USER_ACTIVE, USER_WARNING, USER_FREEZE,
+) = (
+    'INIT', 'FREE', 'ACTIVE', 'WARNING', 'FREEZE',
 )
 
 ACTION_NAMES = (
@@ -58,11 +64,11 @@ RPC_PARAMS = (
 )
 
 USER_KEYS = (
-    USER_ID, USER_POLICY_ID, USER_BALANCE, USER_RATE, USER_CREDIT,
+    USER_ID, USER_NAME, USER_POLICY_ID, USER_BALANCE, USER_RATE, USER_CREDIT,
     USER_LAST_BILL, USER_STATUS, USER_STATUS_REASION, USER_CREATED_AT,
     USER_UPDATED_AT, USER_DELETED_AT,
 ) = (
-    'id', 'policy_id', 'balance', 'rate', 'credit',
+    'id', 'name', 'policy_id', 'balance', 'rate', 'credit',
     'last_bill', 'status', 'status_reason', 'created_at',
     'updated_at', 'deleted_at',
 )
