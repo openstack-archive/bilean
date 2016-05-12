@@ -36,9 +36,9 @@ if [[ -z $SERVICE_ID ]]; then
 fi
 
 openstack endpoint create \
-  --adminurl "http://$HOST:$PORT/v1/\$(project_id)s" \
-  --publicurl "http://$HOST:$PORT/v1/\$(project_id)s" \
-  --internalurl "http://$HOST:$PORT/v1/\$(project_id)s" \
+  --adminurl "http://$HOST:$PORT/v1" \
+  --publicurl "http://$HOST:$PORT/v1" \
+  --internalurl "http://$HOST:$PORT/v1" \
   --region RegionOne \
   bilean
 

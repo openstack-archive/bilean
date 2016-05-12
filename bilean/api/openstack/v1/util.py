@@ -28,10 +28,7 @@ def policy_enforce(handler):
     This is a handler method decorator.
     """
     @functools.wraps(handler)
-    def handle_bilean_method(controller, req, project_id, **kwargs):
-        if req.context.project != project_id:
-            raise exc.HTTPForbidden()
-
+    def handle_bilean_method(controller, req, **kwargs):
         rule = "%s:%s" % (controller.REQUEST_SCOPE, handler.__name__)
         allowed = policy.enforce(context=req.context,
                                  rule=rule, target={})

@@ -51,6 +51,7 @@ class FaultWrapper(wsgi.Middleware):
         'InvalidParameter': webob.exc.HTTPBadRequest,
         'InvalidSchemaError': webob.exc.HTTPBadRequest,
         'MultipleChoices': webob.exc.HTTPBadRequest,
+        'UserNotFound': webob.exc.HTTPNotFound,
         'RuleNotFound': webob.exc.HTTPNotFound,
         'RuleTypeNotFound': webob.exc.HTTPNotFound,
         'RuleTypeNotMatch': webob.exc.HTTPBadRequest,
