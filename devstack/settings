@@ -1,0 +1,41 @@
+# Turn on all bilean services by default
+# API service
+enable_service bl-api
+# Engine
+enable_service bl-eng
+# Scheduler service
+enable_service bl-sch
+# Notification service
+enable_service bl-noti
+
+# Set up default directories
+BILEAN_REPO=${BILEAN_REPO:-${GIT_BASE}/openstack/bilean.git}
+BILEAN_BRANCH=${BILEAN_BRANCH:-master}
+BILEAN_DIR=$DEST/bilean
+
+BILEANCLIENT_REPO=${BILEANCLIENT_REPO:-${GIT_BASE}/openstack/python-bileanclient.git}
+BILEANCLIENT_BRANCH=${BILEANCLIENT_BRANCH:-master}
+BILEANCLIENT_DIR=$DEST/python-bileanclient
+
+BILEAN_STATE_PATH=${BILEAN_STATE_PATH:=$DATA_DIR/bilean}
+BILEAN_AUTH_CACHE_DIR=${BILEAN_AUTH_CACHE_DIR:-/var/cache/bilean}
+
+BILEAN_CONF_DIR=/etc/bilean
+BILEAN_CONF=$BILEAN_CONF_DIR/bilean.conf
+BILEAN_POLICY_JSON=$BILEAN_CONF_DIR/policy.json
+
+# Public facing bits
+BILEAN_SERVICE_HOST=${BILEAN_SERVICE_HOST:-$SERVICE_HOST}
+BILEAN_SERVICE_PORT=${BILEAN_SERVICE_PORT:-8770}
+BILEAN_SERVICE_PROTOCOL=http
+
+# Support entry points installation of console scripts
+if [[ -d $BILEAN_DIR/bin ]]; then
+    BILEAN_BIN_DIR=$BILEAN_DIR/bin
+else
+    BILEAN_BIN_DIR=$(get_python_exec_prefix)
+fi
+
+# Log all output to files
+LOGFILE=$HOME/devstack.log
+SCREEN_LOGDIR=$HOME/logs
