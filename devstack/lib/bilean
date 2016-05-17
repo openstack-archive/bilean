@@ -1,0 +1,178 @@
+#!/bin/bash
+#
+# lib/bilean
+# Functions to control the configuration and operation of the **bilean** service
+
+# To enable, add the following to local.conf
+#
+# [[local|localrc]]
+# enable_plugin bilean https://git.openstack.org/openstack/bilean
+
+# Dependencies:
+#
+# - ``functions`` file
+# - ``DEST``, ``DATA_DIR``, ``STACK_USER`` must be defined
+# - ``SERVICE_{TENANT_NAME|PASSWORD}`` must be defined
+
+# ``stack.sh`` calls the entry points in this order:
+#
+# - install_bilean
+# - install_bileanclient
+# - configure_bilean
+# - init_bilean
+# - start_bilean
+# - stop_bilean
+# - cleanup_bilean
+
+# Save trace setting
+XTRACE=$(set +o | grep xtrace)
+set +o xtrace
+
+# Functions
+# ---------
+
+# Test if any bilean services are enabled
+function is_bilean_enabled {
+    [[ ,${ENABLED_SERVICES} =~ ,"m-" ]] && return 0
+    return 1
+}
+
+# cleanup_bilean() - Remove residual data files, anything left over from previous
+# runs that a clean run would need to clean up
+function cleanup_bilean {
+    sudo rm -rf $BILEAN_STATE_PATH $BILEAN_AUTH_CACHE_DIR
+    sudo rm -rf $BILEAN_CONF_DIR
+}
+
+# configure_bilean() - Set config files, create data dirs, etc
+function configure_bilean {
+    # Put config files in ``/etc/bilean`` for everyone to find
+    if [[ ! -d $BILEAN_CONF_DIR ]]; then
+        sudo mkdir -p $BILEAN_CONF_DIR
+    fi
+    sudo install -d -o $STACK_USER $BILEAN_CONF_DIR
+
+    BILEAN_API_PASTE_FILE=$BILEAN_CONF_DIR/api-paste.ini
+    BILEAN_POLICY_FILE=$BILEAN_CONF_DIR/policy.json
+    BILEAN_RES_DEF_FILE=$BILEAN_CONF_DIR/resource_definitions.yaml
+
+    cp $BILEAN_DIR/etc/bilean/api-paste.ini $BILEAN_API_PASTE_FILE
+    cp $BILEAN_DIR/etc/bilean/policy.json $BILEAN_POLICY_FILE
+    cp $BILEAN_DIR/etc/bilean/resource_definitions.yaml $BILEAN_RES_DEF_FILE
+
+    # common options
+    iniset $BILEAN_CONF DEFAULT debug "$ENABLE_DEBUG_LOG_LEVEL"
+    iniset $BILEAN_CONF DEFAULT use_syslog $SYSLOG
+    if [ "$LOG_COLOR" == "True" ] && [ "$SYSLOG" == "False" ]; then
+        # Add color to logging output
+        setup_colorized_logging $BILEAN_CONF DEFAULT
+    fi
+
+    # rpc
+    iniset_rpc_backend bilean $BILEAN_CONF
+
+    # OpenStack API
+    iniset $BILEAN_CONF bilean_api bilean_host $BILEAN_SERVICE_HOST
+    iniset $BILEAN_CONF bilean_api bind_port $BILEAN_SERVICE_PORT
+
+    # Database connection
+    iniset $BILEAN_CONF database connection `database_connection_url bilean`
+
+    # Keystone authtoken middleware
+    #configure_auth_token_middleware $BILEAN_CONF bilean $BILEAN_AUTH_CACHE_DIR
+    iniset $BILEAN_CONF keystone_authtoken identity_uri $KEYSTONE_AUTH_URI
+    iniset $BILEAN_CONF keystone_authtoken cafile $SSL_BUNDLE_FILE
+    iniset $BILEAN_CONF keystone_authtoken signing_dir $BILEAN_AUTH_CACHE_DIR
+    iniset $BILEAN_CONF keystone_authtoken auth_uri $KEYSTONE_AUTH_URI/v3
+    iniset $BILEAN_CONF keystone_authtoken admin_user bilean
+    iniset $BILEAN_CONF keystone_authtoken admin_password $SERVICE_PASSWORD
+    iniset $BILEAN_CONF keystone_authtoken admin_tenant_name $SERVICE_TENANT_NAME
+
+    # Bilean service credentials
+    iniset $BILEAN_CONF authentication auth_url $KEYSTONE_AUTH_URI/v3
+    iniset $BILEAN_CONF authentication service_username bilean
+    iniset $BILEAN_CONF authentication service_password $SERVICE_PASSWORD
+    iniset $BILEAN_CONF authentication service_project_name $SERVICE_TENANT_NAME
+}
+
+# create_bilean_accounts() - Set up common required bilean accounts
+#
+# Project              User         Roles
+# ------------------------------------------------------------------
+# SERVICE_TENANT_NAME  bilean         service
+function create_bilean_accounts {
+
+    create_service_user "bilean" "admin"
+
+    if [[ "$KEYSTONE_CATALOG_BACKEND" = 'sql' ]]; then
+
+        local bilean_service=$(get_or_create_service "bilean" \
+            "billing" "Billing Service")
+        get_or_create_endpoint $bilean_service \
+            "$REGION_NAME" \
+            "$BILEAN_SERVICE_PROTOCOL://$BILEAN_SERVICE_HOST:$BILEAN_SERVICE_PORT/v1" \
+            "$BILEAN_SERVICE_PROTOCOL://$BILEAN_SERVICE_HOST:$BILEAN_SERVICE_PORT/v1" \
+            "$BILEAN_SERVICE_PROTOCOL://$BILEAN_SERVICE_HOST:$BILEAN_SERVICE_PORT/v1"
+    fi
+
+}
+
+
+# create_bilean_cache_dir() - Part of the init_bilean() process
+function create_bilean_cache_dir {
+    # Create cache dir
+    sudo mkdir -p $BILEAN_AUTH_CACHE_DIR
+    sudo chown $STACK_USER $BILEAN_AUTH_CACHE_DIR
+    rm -f $BILEAN_AUTH_CACHE_DIR/*
+}
+
+# init_bilean() - Initialize databases, etc.
+function init_bilean {
+
+    # (Re)create bilean database
+    recreate_database bilean
+
+    # Migrate bilean database
+    $BILEAN_BIN_DIR/bilean-db-manage db_sync
+    create_bilean_cache_dir
+}
+
+# install_bileanclient() - Collect source and prepare
+function install_bileanclient {
+    if use_library_from_git "python-bileanclient"; then
+        git_clone $BILEANCLIENT_REPO $BILEANCLIENT_DIR $BILEANCLIENT_BRANCH
+        setup_develop $BILEANCLIENT_DIR
+    fi
+}
+
+# install_bilean() - Collect source and prepare
+function install_bilean {
+    git_clone $BILEAN_REPO $BILEAN_DIR $BILEAN_BRANCH
+    setup_develop $BILEAN_DIR
+}
+
+# start_bilean() - Start running processes, including screen
+function start_bilean {
+
+    # ``run_process`` checks ``is_service_enabled``, it is not needed here
+    run_process bl-api "$BILEAN_BIN_DIR/bilean-api --config-file=$BILEAN_CONF"
+    run_process bl-eng "$BILEAN_BIN_DIR/bilean-engine --config-file=$BILEAN_CONF"
+    run_process bl-sch "$BILEAN_BIN_DIR/bilean-scheduler --config-file=$BILEAN_CONF"
+    run_process bl-noti "$BILEAN_BIN_DIR/bilean-notification --config-file=$BILEAN_CONF"
+}
+
+# stop_bilean() - Stop running processes (non-screen)
+function stop_bilean {
+    for serv in bl-api bl-eng bl-sch bl-noti; do
+        stop_process $serv
+    done
+}
+
+
+# Restore xtrace
+$XTRACE
+
+# Tell emacs to use shell-script-mode
+## Local variables:
+## mode: shell-script
+## End:
