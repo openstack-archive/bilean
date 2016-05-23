@@ -41,18 +41,24 @@ bilean-api
 The :program:`bilean-api` component provides an OpenStack-native REST API that
 processes API requests by sending them to the :program:`bilean-engine` over RPC.
 
-bilean-notification
--------------------
+bilean-scheduler
+----------------
 
-The :program:`bilean-notification` component monitors the message bus for data
-provided by other OpenStack components such as Nova, then converts notifications
-into billing resources and sends to :program:`bilean-engine` over AMQP.
+The :program:`bilean-scheduler` manages jobs related to users and scheduler job
+to engine to execute it.
 
 bilean-engine
 -------------
 
 The :program:`bilean-engine` does the main billing work, operates all users,
 rules, policies, resources, jobs and events.
+
+bilean-notification
+-------------------
+
+The :program:`bilean-notification` component monitors the message bus for data
+provided by other OpenStack components such as Nova, then converts notifications
+into billing resources and sends to :program:`bilean-engine` over AMQP.
 
 
 Installation

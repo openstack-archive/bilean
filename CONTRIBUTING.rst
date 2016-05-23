@@ -1,28 +1,43 @@
-Before You Start
-================
+======================
+Contributing to Bilean
+======================
 
-If you would like to contribute to the development of OpenStack,
-you must follow the steps in this page:
+If you're interested in contributing to the Bilean project,
+the following will help get you started.
 
-   http://docs.openstack.org/infra/manual/developers.html
+Contributor License Agreement
+=============================
 
-Once those steps have been completed, changes to OpenStack
-should be submitted for review via the Gerrit tool, following
-the workflow documented at:
+In order to contribute to the Bilean project, you need to have
+signed OpenStack's contributor's agreement:
 
-   http://docs.openstack.org/infra/manual/developers.html#development-workflow
+* http://docs.openstack.org/infra/manual/developers.html
+* http://wiki.openstack.org/CLA
 
-Reporting Bugs
-==============
 
-Pull requests submitted through Github will be ignored.
+Project Hosting Details
+=======================
 
-Bugs should be filed on Launchpad, not Github:
+* Bug trackers
+    * General bilean tracker: https://launchpad.net/bilean
 
-   https://bugs.launchpad.net/bilean
+    * Python client tracker: https://launchpad.net/python-bileanclient
 
-Meet the Developers
-===================
+* Mailing list (prefix subjects with ``[Bilean]`` for faster responses)
+    http://lists.openstack.org/cgi-bin/mailman/listinfo/openstack-dev
 
-Real-time communication among developers are mostly done via IRC.
-The team is using the #openstack-bilean channel on freenode.net.
+* Wiki
+    https://wiki.openstack.org/wiki/Bilean
+
+* IRC channel
+    * #openstack-bilean at FreeNode
+
+* Code Hosting
+    * https://git.openstack.org/cgit/openstack/bilean
+
+    * https://git.openstack.org/cgit/openstack/python-bileanclient
+
+* Code Review
+    * https://review.openstack.org/#/q/bilean+AND+status:+open,n,z
+
+    * http://docs.openstack.org/infra/manual/developers.html#development-workflow
