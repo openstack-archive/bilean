@@ -3,15 +3,21 @@
 
     "users:index": "role:admin",
     "users:update": "role:admin",
-    "users:show": "",
+    "users:get": "",
+    "users:action": "role:admin",
 
-    "resources:index": "role:admin",
-    "resources:show": "role:admin",
+    "resources:index": "",
+    "resources:get": "",
     "resources:validate_creation": "role:admin",
 
-    "rules:index": "",
+    "rules:index": "role:admin",
+    "rules:get": "role:admin",
     "rules:create": "role:admin",
-    "rules:show": "role:admin",
     "rules:update": "role:admin",
-    "rules:delete": "role:admin"
+    "rules:delete": "role:admin",
+
+    "policies:index": "role:admin",
+    "policies:create": "role:admin",
+    "policies:get": "role:admin",
+    "policies:action": "role:admin"
 }
