@@ -12,18 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 import os
 import sys
 
 sys.path.insert(0, os.path.abspath('../..'))
 # -- General configuration ----------------------------------------------------
 
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    # 'sphinx.ext.intersphinx',
-    'oslosphinx'
+    "sphinx.ext.autodoc",
+    "sphinx.ext.doctest",
+    "sphinx.ext.todo",
+    "sphinx.ext.coverage",
+    "sphinx.ext.ifconfig",
+    "sphinx.ext.viewcode",
 ]
 
 # autodoc generation is a bit aggressive and a nuisance when doing heavy
@@ -38,7 +44,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'bilean'
-copyright = u'2015, OpenStack Foundation'
+copyright = u'%d, OpenStack Foundation' % datetime.datetime.now().year
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
 add_function_parentheses = True
@@ -57,6 +63,14 @@ pygments_style = 'sphinx'
 # html_theme_path = ["."]
 # html_theme = '_theme'
 # html_static_path = ['static']
+if not on_rtd:
+    import oslosphinx
+    theme_dir = os.path.join(os.path.dirname(oslosphinx.__file__), 'theme')
+    html_theme_path = [theme_dir]
+    html_theme = "openstack"
+else:
+    html_theme_path = []
+    html_theme = 'default'
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = '%sdoc' % project
