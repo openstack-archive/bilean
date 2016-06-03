@@ -24,6 +24,10 @@ Bug Tracking
 ------------
 - Bugs: https://bugs.launchpad.net/bilean
 
+Documentation
+------------
+- Documentation: http://bilean.readthedocs.io/en/latest
+
 IRC
 ---
 IRC Channel: #openstack-bilean on `Freenode`_.
