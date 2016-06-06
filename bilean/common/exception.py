@@ -96,6 +96,10 @@ class InvalidParameter(BileanException):
     msg_fmt = _("Invalid value '%(value)s' specified for '%(name)s'")
 
 
+class PluginTypeNotFound(BileanException):
+    msg_fmt = _("Plugin type (%(plugin_type)s) is not found.")
+
+
 class RuleTypeNotFound(BileanException):
     msg_fmt = _("Rule type (%(rule_type)s) is not found.")
 

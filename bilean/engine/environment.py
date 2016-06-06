@@ -39,12 +39,12 @@ def global_env():
 
 
 class Environment(object):
-    '''An object that contains all rules, resources and customizations.'''
+    '''An object that contains all plugins, drivers and customizations.'''
 
     SECTIONS = (
-        PARAMETERS, CUSTOM_RULES,
+        PARAMETERS, CUSTOM_PLUGINS,
     ) = (
-        'parameters', 'custom_rules'
+        'parameters', 'custom_plugins'
     )
 
     def __init__(self, env=None, is_global=False):
@@ -55,22 +55,19 @@ class Environment(object):
         '''
         self.params = {}
         if is_global:
-            self.rule_registry = registry.Registry('rules')
+            self.plugin_registry = registry.Registry('plugins')
             self.driver_registry = registry.Registry('drivers')
-            self.resource_registry = registry.Registry('resources')
         else:
-            self.rule_registry = registry.Registry(
-                'rules', global_env().rule_registry)
-            self.resource_registry = registry.Registry(
-                'resources', global_env().resource_registry)
+            self.plugin_registry = registry.Registry(
+                'plugins', global_env().plugin_registry)
             self.driver_registry = registry.Registry(
                 'drivers', global_env().driver_registry)
 
         if env is not None:
             # Merge user specified keys with current environment
             self.params = env.get(self.PARAMETERS, {})
-            custom_rules = env.get(self.CUSTOM_RULES, {})
-            self.rule_registry.load(custom_rules)
+            custom_plugins = env.get(self.CUSTOM_PLUGINS, {})
+            self.plugin_registry.load(custom_plugins)
 
     def parse(self, env_str):
         '''Parse a string format environment file into a dictionary.'''
@@ -97,7 +94,7 @@ class Environment(object):
         '''Load environment from the given dictionary.'''
 
         self.params.update(env_dict.get(self.PARAMETERS, {}))
-        self.rule_registry.load(env_dict.get(self.CUSTOM_RULES, {}))
+        self.plugin_registry.load(env_dict.get(self.CUSTOM_PLUGINS, {}))
 
     def _check_plugin_name(self, plugin_type, name):
         if name is None or name == "":
@@ -107,33 +104,22 @@ class Environment(object):
             msg = _('%s type name is not a string') % plugin_type
             raise exception.InvalidPlugin(message=msg)
 
-    def register_rule(self, name, plugin):
-        self._check_plugin_name('Rule', name)
-        self.rule_registry.register_plugin(name, plugin)
+    def register_plugin(self, name, plugin):
+        self._check_plugin_name('Plugin', name)
+        self.plugin_registry.register_plugin(name, plugin)
 
-    def get_rule(self, name):
-        self._check_plugin_name('Rule', name)
-        plugin = self.rule_registry.get_plugin(name)
+    def get_plugin(self, name):
+        self._check_plugin_name('Plugin', name)
+        plugin = self.plugin_registry.get_plugin(name)
         if plugin is None:
-            raise exception.RuleTypeNotFound(rule_type=name)
+            raise exception.PluginTypeNotFound(plugin_type=name)
         return plugin
 
-    def get_rule_types(self):
-        return self.rule_registry.get_types()
+    def get_plugins(self):
+        return self.plugin_registry.get_plugins()
 
-    def register_resource(self, name, plugin):
-        self._check_plugin_name('Resource', name)
-        self.resource_registry.register_plugin(name, plugin)
-
-    def get_resource(self, name):
-        self._check_plugin_name('Resource', name)
-        plugin = self.resource_registry.get_plugin(name)
-        if plugin is None:
-            raise exception.ResourceTypeNotFound(resource_type=name)
-        return plugin
-
-    def get_resource_types(self):
-        return self.resource_registry.get_types()
+    def get_plugin_types(self):
+        return self.plugin_registry.get_types()
 
     def register_driver(self, name, plugin):
         self._check_plugin_name('Driver', name)
@@ -193,13 +179,9 @@ def initialize():
     env = Environment(is_global=True)
 
     # Register global plugins when initialized
-    entries = _get_mapping('bilean.rules')
+    entries = _get_mapping('bilean.plugins')
     for name, plugin in entries:
-        env.register_rule(name, plugin)
-
-    entries = _get_mapping('bilean.resources')
-    for name, plugin in entries:
-        env.register_resource(name, plugin)
+        env.register_plugin(name, plugin)
 
     entries = _get_mapping('bilean.drivers')
     for name, plugin in entries:

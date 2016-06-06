@@ -39,8 +39,7 @@ from bilean.engine import environment
 from bilean.engine import event as event_mod
 from bilean.engine import policy as policy_mod
 from bilean.engine import user as user_mod
-from bilean.resources import base as resource_base
-from bilean.rules import base as rule_base
+from bilean.plugins import base as plugin_base
 from bilean import scheduler as bilean_scheduler
 
 LOG = logging.getLogger(__name__)
@@ -338,14 +337,14 @@ class EngineService(service.Service):
 
     @request_context
     def rule_create(self, cnxt, name, spec, metadata=None):
-        if len(rule_base.Rule.load_all(cnxt, filters={'name': name})) > 0:
+        if len(plugin_base.Rule.load_all(cnxt, filters={'name': name})) > 0:
             msg = _("The rule (%(name)s) already exists."
                     ) % {"name": name}
             raise exception.BileanBadRequest(msg=msg)
 
         type_name, version = schema.get_spec_version(spec)
         try:
-            plugin = environment.global_env().get_rule(type_name)
+            plugin = environment.global_env().get_plugin(type_name)
         except exception.RuleTypeNotFound:
             msg = _("The specified rule type (%(type)s) is not supported."
                     ) % {"type": type_name}
@@ -353,7 +352,7 @@ class EngineService(service.Service):
 
         LOG.info(_LI("Creating rule type: %(type)s, name: %(name)s."),
                  {'type': type_name, 'name': name})
-        rule = plugin(name, spec, metadata=metadata)
+        rule = plugin.RuleClass(name, spec, metadata=metadata)
         try:
             rule.validate()
         except exception.InvalidSpec as ex:
@@ -374,18 +373,18 @@ class EngineService(service.Service):
         if show_deleted is not None:
             show_deleted = utils.parse_bool_param('show_deleted',
                                                   show_deleted)
-        rules = rule_base.Rule.load_all(cnxt, limit=limit,
-                                        marker=marker,
-                                        sort_keys=sort_keys,
-                                        sort_dir=sort_dir,
-                                        filters=filters,
-                                        show_deleted=show_deleted)
+        rules = plugin_base.Rule.load_all(cnxt, limit=limit,
+                                          marker=marker,
+                                          sort_keys=sort_keys,
+                                          sort_dir=sort_dir,
+                                          filters=filters,
+                                          show_deleted=show_deleted)
 
         return [rule.to_dict() for rule in rules]
 
     @request_context
     def rule_get(self, cnxt, rule_id):
-        rule = rule_base.Rule.load(cnxt, rule_id=rule_id)
+        rule = plugin_base.Rule.load(cnxt, rule_id=rule_id)
         return rule.to_dict()
 
     @request_context
@@ -395,7 +394,7 @@ class EngineService(service.Service):
     @request_context
     def rule_delete(self, cnxt, rule_id):
         LOG.info(_LI("Deleting rule: '%s'."), rule_id)
-        rule_base.Rule.delete(cnxt, rule_id)
+        plugin_base.Rule.delete(cnxt, rule_id)
 
     @request_context
     def validate_creation(self, cnxt, resources):
@@ -410,9 +409,9 @@ class EngineService(service.Service):
         total_rate = 0
         for resource in resources['resources']:
             rule = policy.find_rule(cnxt, resource['resource_type'])
-            res = resource_base.Resource('FAKE_ID', user.id,
-                                         resource['resource_type'],
-                                         resource['properties'])
+            res = plugin_base.Resource('FAKE_ID', user.id,
+                                       resource['resource_type'],
+                                       resource['properties'])
             total_rate += rule.get_price(res)
         if count > 1:
             total_rate = total_rate * count
@@ -426,8 +425,8 @@ class EngineService(service.Service):
                         properties):
         """Create resource by given data."""
 
-        resource = resource_base.Resource(resource_id, user_id, resource_type,
-                                          properties)
+        resource = plugin_base.Resource(resource_id, user_id, resource_type,
+                                        properties)
 
         params = {
             'name': 'create_resource_%s' % resource_id,
@@ -451,18 +450,18 @@ class EngineService(service.Service):
         if show_deleted is not None:
             show_deleted = utils.parse_bool_param('show_deleted',
                                                   show_deleted)
-        resources = resource_base.Resource.load_all(cnxt, user_id=user_id,
-                                                    limit=limit, marker=marker,
-                                                    sort_keys=sort_keys,
-                                                    sort_dir=sort_dir,
-                                                    filters=filters,
-                                                    project_safe=project_safe,
-                                                    show_deleted=show_deleted)
+        resources = plugin_base.Resource.load_all(cnxt, user_id=user_id,
+                                                  limit=limit, marker=marker,
+                                                  sort_keys=sort_keys,
+                                                  sort_dir=sort_dir,
+                                                  filters=filters,
+                                                  project_safe=project_safe,
+                                                  show_deleted=show_deleted)
         return [r.to_dict() for r in resources]
 
     @request_context
     def resource_get(self, cnxt, resource_id):
-        resource = resource_base.Resource.load(cnxt, resource_id=resource_id)
+        resource = plugin_base.Resource.load(cnxt, resource_id=resource_id)
         return resource.to_dict()
 
     def resource_update(self, cnxt, user_id, resource):
@@ -485,7 +484,7 @@ class EngineService(service.Service):
         """Delete a specific resource"""
 
         try:
-            resource_base.Resource.load(cnxt, resource_id=resource_id)
+            plugin_base.Resource.load(cnxt, resource_id=resource_id)
         except exception.ResourceNotFound:
             LOG.error(_LE('The resource(%s) trying to delete not found.'),
                       resource_id)
@@ -539,7 +538,7 @@ class EngineService(service.Service):
             type_cache = []
             for rule_id in rule_ids:
                 try:
-                    rule = rule_base.Rule.load(cnxt, rule_id=rule_id)
+                    rule = plugin_base.Rule.load(cnxt, rule_id=rule_id)
                     if rule.type not in type_cache:
                         rules.append({'id': rule_id, 'type': rule.type})
                         type_cache.append(rule.type)
@@ -631,7 +630,7 @@ class EngineService(service.Service):
         not_found = []
         for rule in rules:
             try:
-                db_rule = rule_base.Rule.load(cnxt, rule_id=rule)
+                db_rule = plugin_base.Rule.load(cnxt, rule_id=rule)
                 append_data = {'id': db_rule.id, 'type': db_rule.type}
                 if db_rule.type in exist_types:
                     error_rules.append(append_data)

@@ -14,7 +14,7 @@
 from bilean.common import exception
 from bilean.common import utils
 from bilean.db import api as db_api
-from bilean.rules import base as rule_base
+from bilean.plugins import base as plugin_base
 
 
 class Policy(object):
@@ -132,6 +132,6 @@ class Policy(object):
 
         for rule in self.rules:
             if rtype == rule['type'].split('-')[0]:
-                return rule_base.Rule.load(context, rule_id=rule['id'])
+                return plugin_base.Rule.load(context, rule_id=rule['id'])
 
         raise exception.RuleNotFound(rule_type=rtype)

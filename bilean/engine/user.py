@@ -20,7 +20,7 @@ from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.drivers import base as driver_base
 from bilean import notifier as bilean_notifier
-from bilean.resources import base as resource_base
+from bilean.plugins import base as plugin_base
 
 from oslo_config import cfg
 from oslo_log import log as logging
@@ -335,7 +335,7 @@ class User(object):
             reason = _("Balance overdraft")
             LOG.info(_LI("Freeze user %(user_id)s, reason: %(reason)s"),
                      {'user_id': self.id, 'reason': reason})
-            resources = resource_base.Resource.load_all(
+            resources = plugin_base.Resource.load_all(
                 context, user_id=self.id, project_safe=False)
             for resource in resources:
                 resource.do_delete(context)
