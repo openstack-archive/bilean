@@ -21,7 +21,7 @@ from bilean.engine import event as EVENT
 from bilean.engine.flows import flow as bilean_flow
 from bilean.engine import lock as bilean_lock
 from bilean.engine import user as user_mod
-from bilean.resources import base as resource_base
+from bilean.plugins import base as plugin_base
 
 from oslo_log import log as logging
 
@@ -57,7 +57,7 @@ class UserAction(base.Action):
             self.user = None
 
     def do_create_resource(self):
-        resource = resource_base.Resource.from_dict(self.inputs)
+        resource = plugin_base.Resource.from_dict(self.inputs)
         try:
             flow_engine = bilean_flow.get_create_resource_flow(
                 self.context, self.target, resource)
@@ -75,7 +75,7 @@ class UserAction(base.Action):
         try:
             values = self.inputs
             resource_id = values.pop('id', None)
-            resource = resource_base.Resource.load(
+            resource = plugin_base.Resource.load(
                 self.context, resource_id=resource_id)
         except exception.ResourceNotFound:
             LOG.error(_LE('The resource(%s) trying to update not found.'),
@@ -99,7 +99,7 @@ class UserAction(base.Action):
     def do_delete_resource(self):
         try:
             resource_id = self.inputs.get('resource_id')
-            resource = resource_base.Resource.load(
+            resource = plugin_base.Resource.load(
                 self.context, resource_id=resource_id)
         except exception.ResourceNotFound:
             LOG.error(_LE('The resource(%s) trying to delete not found.'),

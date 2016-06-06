@@ -128,6 +128,9 @@ class Registry(object):
         infoes = sorted(matches)
         return infoes[0].plugin if infoes else None
 
+    def get_plugins(self):
+        return [p.plugin for p in six.itervalues(self._registry)]
+
     def as_dict(self):
         return dict((k, v.plugin) for k, v in self._registry.items())
 

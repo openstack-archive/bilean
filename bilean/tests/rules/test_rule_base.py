@@ -18,12 +18,12 @@ from bilean.common import schema
 from bilean.common import utils as common_utils
 from bilean.db import api as db_api
 from bilean.engine import environment
-from bilean.rules import base as rule_base
+from bilean.plugins import base as plugin_base
 from bilean.tests.common import base
 from bilean.tests.common import utils
 
 
-class DummyRule(rule_base.Rule):
+class DummyRule(plugin_base.Rule):
     VERSION = '1.0'
 
     properties_schema = {
@@ -41,15 +41,19 @@ class DummyRule(rule_base.Rule):
         super(DummyRule, self).__init__(name, spec, **kwargs)
 
 
+class DummyPlugin(plugin_base.Plugin):
+    RuleClass = DummyRule
+
+
 class TestRuleBase(base.BileanTestCase):
 
     def setUp(self):
         super(TestRuleBase, self).setUp()
 
         self.context = utils.dummy_context()
-        environment.global_env().register_rule('bilean.rule.dummy', DummyRule)
+        environment.global_env().register_plugin('bilean.dummy', DummyPlugin)
         self.spec = {
-            'type': 'bilean.rule.dummy',
+            'type': 'bilean.dummy',
             'version': '1.0',
             'properties': {
                 'key1': 'value1',
@@ -58,7 +62,7 @@ class TestRuleBase(base.BileanTestCase):
         }
 
     def _create_rule(self, rule_name, rule_id=None):
-        rule = rule_base.Rule(rule_name, self.spec)
+        rule = plugin_base.Rule(rule_name, self.spec)
         if rule_id:
             rule.id = rule_id
 
@@ -67,7 +71,7 @@ class TestRuleBase(base.BileanTestCase):
     def _create_db_rule(self, **kwargs):
         values = {
             'name': 'test-rule',
-            'type': 'bilean.rule.dummy-1.0',
+            'type': 'bilean.dummy-1.0',
             'spec': self.spec,
             'metadata': {}
         }
@@ -81,7 +85,7 @@ class TestRuleBase(base.BileanTestCase):
 
         self.assertIsNone(rule.id)
         self.assertEqual(name, rule.name)
-        self.assertEqual('bilean.rule.dummy-1.0', rule.type)
+        self.assertEqual('bilean.dummy-1.0', rule.type)
         self.assertEqual(self.spec, rule.spec)
         self.assertEqual({}, rule.metadata)
         self.assertIsNone(rule.created_at)
@@ -89,7 +93,7 @@ class TestRuleBase(base.BileanTestCase):
         self.assertIsNone(rule.deleted_at)
 
         spec_data = rule.spec_data
-        self.assertEqual('bilean.rule.dummy', spec_data['type'])
+        self.assertEqual('bilean.dummy', spec_data['type'])
         self.assertEqual('1.0', spec_data['version'])
         self.assertEqual({'key1': 'value1', 'key2': 2},
                          spec_data['properties'])
@@ -102,13 +106,13 @@ class TestRuleBase(base.BileanTestCase):
             'properties': '',
         }
 
-        self.assertRaises(exception.RuleTypeNotFound,
-                          rule_base.Rule,
+        self.assertRaises(exception.PluginTypeNotFound,
+                          plugin_base.Rule,
                           'test-rule', bad_spec)
 
     def test_load(self):
         rule = self._create_db_rule()
-        result = rule_base.Rule.load(self.context, rule.id)
+        result = plugin_base.Rule.load(self.context, rule.id)
 
         self.assertEqual(rule.id, result.id)
         self.assertEqual(rule.name, result.name)
@@ -122,25 +126,25 @@ class TestRuleBase(base.BileanTestCase):
 
     def test_load_not_found(self):
         ex = self.assertRaises(exception.RuleNotFound,
-                               rule_base.Rule.load,
+                               plugin_base.Rule.load,
                                self.context, 'fake-rule', None)
         self.assertEqual('The rule (fake-rule) could not be found.',
                          six.text_type(ex))
 
         ex = self.assertRaises(exception.RuleNotFound,
-                               rule_base.Rule.load,
+                               plugin_base.Rule.load,
                                self.context, None, None)
         self.assertEqual('The rule (None) could not be found.',
                          six.text_type(ex))
 
     def test_load_all(self):
-        result = rule_base.Rule.load_all(self.context)
+        result = plugin_base.Rule.load_all(self.context)
         self.assertEqual([], list(result))
 
         rule1 = self._create_db_rule(name='rule-1', id='ID1')
         rule2 = self._create_db_rule(name='rule-2', id='ID2')
 
-        result = rule_base.Rule.load_all(self.context)
+        result = plugin_base.Rule.load_all(self.context)
         rules = list(result)
         self.assertEqual(2, len(rules))
         self.assertEqual(rule1.id, rules[0].id)
@@ -150,7 +154,7 @@ class TestRuleBase(base.BileanTestCase):
     def test_load_all_with_params(self, mock_get_all):
         mock_get_all.return_value = []
 
-        res = list(rule_base.Rule.load_all(self.context))
+        res = list(plugin_base.Rule.load_all(self.context))
         self.assertEqual([], res)
         mock_get_all.assert_called_once_with(self.context, limit=None,
                                              marker=None, sort_keys=None,
@@ -158,11 +162,11 @@ class TestRuleBase(base.BileanTestCase):
                                              show_deleted=False)
         mock_get_all.reset_mock()
 
-        res = list(rule_base.Rule.load_all(self.context, limit=1,
-                                           marker='MARKER',
-                                           sort_keys=['K1'],
-                                           sort_dir='asc',
-                                           filters={'name': 'fake-name'}))
+        res = list(plugin_base.Rule.load_all(self.context, limit=1,
+                                             marker='MARKER',
+                                             sort_keys=['K1'],
+                                             sort_dir='asc',
+                                             filters={'name': 'fake-name'}))
         self.assertEqual([], res)
         mock_get_all.assert_called_once_with(self.context, limit=1,
                                              marker='MARKER',
@@ -175,14 +179,14 @@ class TestRuleBase(base.BileanTestCase):
         rule = self._create_db_rule()
         rule_id = rule.id
 
-        res = rule_base.Rule.delete(self.context, rule_id)
+        res = plugin_base.Rule.delete(self.context, rule_id)
         self.assertIsNone(res)
         self.assertRaises(exception.RuleNotFound,
-                          rule_base.Rule.load,
+                          plugin_base.Rule.load,
                           self.context, rule_id, None)
 
     def test_delete_not_found(self):
-        result = rule_base.Rule.delete(self.context, 'fake-rule')
+        result = plugin_base.Rule.delete(self.context, 'fake-rule')
         self.assertIsNone(result)
 
     def test_store_for_create(self):
@@ -240,7 +244,7 @@ class TestRuleBase(base.BileanTestCase):
             'deleted_at': None,
         }
 
-        result = rule_base.Rule.load(self.context, rule_id=rule.id)
+        result = plugin_base.Rule.load(self.context, rule_id=rule.id)
         self.assertEqual(expected, result.to_dict())
 
     def test_get_schema(self):

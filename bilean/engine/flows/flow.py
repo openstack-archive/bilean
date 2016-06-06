@@ -24,8 +24,7 @@ from bilean.common import exception
 from bilean.common.i18n import _LE
 from bilean.engine import policy as policy_mod
 from bilean.engine import user as user_mod
-from bilean.resources import base as resource_base
-from bilean.rules import base as rule_base
+from bilean.plugin import base as plugin_base
 from bilean import scheduler as bilean_scheduler
 
 LOG = logging.getLogger(__name__)
@@ -96,7 +95,7 @@ class UpdateResourceTask(task.Task):
     def execute(self, context, resource, values, resource_bak, **kwargs):
         old_rate = resource.rate
         resource.properties = values.get('properties')
-        rule = rule_base.Rule.load(context, rule_id=resource.rule_id)
+        rule = plugin_base.Rule.load(context, rule_id=resource.rule_id)
         resource.rate = rule.get_price(resource)
         resource.delta_rate = resource.rate - old_rate
         resource.store(context)
@@ -107,7 +106,7 @@ class UpdateResourceTask(task.Task):
             return
 
         # restore resource
-        res = resource_base.Resource.from_dict(resource_bak)
+        res = plugin_base.Resource.from_dict(resource_bak)
         res.store(context)
 
 
