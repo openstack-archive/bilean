@@ -128,4 +128,4 @@ class ServerPlugin(base.Plugin):
 
     RuleClass = ServerRule
     ResourceClass = ServerResource
-    notification_exchanges = ['nova', 'neutron']
+    notification_exchanges = ['nova']

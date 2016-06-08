@@ -22,8 +22,21 @@ Enabling Bilean in DevStack
 
    Bilean service is driven using a plugin mechanism for integrating to other
    services. Each integrated service may require additional configuration
-   settings. For example, typically, you will need to add the
-   ``billing_notifications`` notification topic to each service's configuration.
+   settings. Typically, you will need to set the notifications driver in each
+   service's configuration.
+
+   For example, to enable nova service, edit `/etc/nova/nvoa.conf` and add
+   following configuration::
+
+       [oslo_messaging_notifications]
+       driver = messaging
+
+   Or add following configurations to post config section in `local.conf` to
+   make devstack automaticlly configure the settings above::
+
+       [[post-config|$NOVA_CONF]]
+       [oslo_messaging_notifications]
+       driver = messaging
 
 4. Then run devstack normally.
 
