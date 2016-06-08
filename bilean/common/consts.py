@@ -20,13 +20,11 @@ MAX_RESOURCE_NUM = 1000
 RPC_ATTRS = (
     ENGINE_TOPIC,
     SCHEDULER_TOPIC,
-    NOTIFICATION_TOPICS,
     ENGINE_DISPATCHER_TOPIC,
     RPC_API_VERSION,
 ) = (
     'bilean-engine',
     'bilean-scheduler',
-    'billing_notifications',
     'bilean_engine_dispatcher',
     '1.0',
 )

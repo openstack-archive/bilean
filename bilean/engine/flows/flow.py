@@ -24,7 +24,7 @@ from bilean.common import exception
 from bilean.common.i18n import _LE
 from bilean.engine import policy as policy_mod
 from bilean.engine import user as user_mod
-from bilean.plugin import base as plugin_base
+from bilean.plugins import base as plugin_base
 from bilean import scheduler as bilean_scheduler
 
 LOG = logging.getLogger(__name__)
