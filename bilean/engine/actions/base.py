@@ -21,6 +21,7 @@ from bilean.common import context as req_context
 from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common.i18n import _LE
+from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.engine import event as EVENT
 
@@ -104,8 +105,8 @@ class Action(object):
         # working on the action.  It also serves as a lock.
         self.owner = kwargs.get('owner', None)
 
-        self.start_time = kwargs.get('start_time', None)
-        self.end_time = kwargs.get('end_time', None)
+        self.start_time = utils.make_decimal(kwargs.get('start_time', 0))
+        self.end_time = utils.make_decimal(kwargs.get('end_time', 0))
 
         # Timeout is a placeholder in case some actions may linger too long
         self.timeout = kwargs.get('timeout', cfg.CONF.default_action_timeout)
@@ -141,8 +142,8 @@ class Action(object):
             'action': self.action,
             'cause': self.cause,
             'owner': self.owner,
-            'start_time': self.start_time,
-            'end_time': self.end_time,
+            'start_time': utils.format_decimal(self.start_time),
+            'end_time': utils.format_decimal(self.end_time),
             'timeout': self.timeout,
             'status': self.status,
             'status_reason': self.status_reason,
@@ -364,8 +365,8 @@ class Action(object):
             'target': self.target,
             'cause': self.cause,
             'owner': self.owner,
-            'start_time': self.start_time,
-            'end_time': self.end_time,
+            'start_time': utils.dec2str(self.start_time),
+            'end_time': utils.dec2str(self.end_time),
             'timeout': self.timeout,
             'status': self.status,
             'status_reason': self.status_reason,

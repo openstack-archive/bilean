@@ -102,11 +102,10 @@ class User(BASE, BileanBase, SoftDelete, StateAware, models.TimestampMixin):
         sqlalchemy.String(36),
         sqlalchemy.ForeignKey('policy.id'),
         nullable=True)
-    balance = sqlalchemy.Column(sqlalchemy.Float, default=0.0)
-    rate = sqlalchemy.Column(sqlalchemy.Float, default=0.0)
+    balance = sqlalchemy.Column(sqlalchemy.Numeric(20, 8), default=0.0)
+    rate = sqlalchemy.Column(sqlalchemy.Numeric(20, 8), default=0.0)
     credit = sqlalchemy.Column(sqlalchemy.Integer, default=0)
-    last_bill = sqlalchemy.Column(
-        sqlalchemy.DateTime, default=timeutils.utcnow())
+    last_bill = sqlalchemy.Column(sqlalchemy.Numeric(24, 8))
 
 
 class Policy(BASE, BileanBase, SoftDelete, models.TimestampMixin):
@@ -146,8 +145,8 @@ class Resource(BASE, BileanBase, SoftDelete, models.TimestampMixin):
     rule_id = sqlalchemy.Column(sqlalchemy.String(36), nullable=True)
     user = relationship(User, backref=backref('resources'))
     resource_type = sqlalchemy.Column(sqlalchemy.String(36), nullable=False)
-    rate = sqlalchemy.Column(sqlalchemy.Float, nullable=False)
-    last_bill = sqlalchemy.Column(sqlalchemy.DateTime)
+    rate = sqlalchemy.Column(sqlalchemy.Numeric(20, 8), nullable=False)
+    last_bill = sqlalchemy.Column(sqlalchemy.Numeric(24, 8))
     properties = sqlalchemy.Column(types.Dict)
 
 
@@ -163,8 +162,8 @@ class Action(BASE, BileanBase, StateAware, models.TimestampMixin):
     action = sqlalchemy.Column(sqlalchemy.String(255))
     cause = sqlalchemy.Column(sqlalchemy.String(255))
     owner = sqlalchemy.Column(sqlalchemy.String(36))
-    start_time = sqlalchemy.Column(sqlalchemy.Float(precision='24,8'))
-    end_time = sqlalchemy.Column(sqlalchemy.Float(precision='24,8'))
+    start_time = sqlalchemy.Column(sqlalchemy.Numeric(24, 8))
+    end_time = sqlalchemy.Column(sqlalchemy.Numeric(24, 8))
     timeout = sqlalchemy.Column(sqlalchemy.Integer)
     inputs = sqlalchemy.Column(types.Dict)
     outputs = sqlalchemy.Column(types.Dict)
@@ -212,10 +211,10 @@ class Consumption(BASE, BileanBase):
     user_id = sqlalchemy.Column(sqlalchemy.String(36))
     resource_id = sqlalchemy.Column(sqlalchemy.String(36))
     resource_type = sqlalchemy.Column(sqlalchemy.String(255))
-    start_time = sqlalchemy.Column(sqlalchemy.DateTime)
-    end_time = sqlalchemy.Column(sqlalchemy.DateTime)
-    rate = sqlalchemy.Column(sqlalchemy.Float)
-    cost = sqlalchemy.Column(sqlalchemy.Float)
+    start_time = sqlalchemy.Column(sqlalchemy.Numeric(24, 8))
+    end_time = sqlalchemy.Column(sqlalchemy.Numeric(24, 8))
+    rate = sqlalchemy.Column(sqlalchemy.Numeric(20, 8))
+    cost = sqlalchemy.Column(sqlalchemy.Numeric(20, 8))
     meta_data = sqlalchemy.Column(types.Dict)
 
 
@@ -229,7 +228,7 @@ class Recharge(BASE, BileanBase):
     user_id = sqlalchemy.Column(sqlalchemy.String(36))
     type = sqlalchemy.Column(sqlalchemy.String(255))
     timestamp = sqlalchemy.Column(sqlalchemy.DateTime)
-    value = sqlalchemy.Column(sqlalchemy.Float)
+    value = sqlalchemy.Column(sqlalchemy.Numeric(20, 8))
     meta_data = sqlalchemy.Column(types.Dict)
 
 

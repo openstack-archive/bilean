@@ -30,10 +30,10 @@ class Consumption(object):
         self.resource_id = kwargs.get('resource_id')
         self.resource_type = kwargs.get('resource_type')
 
-        self.start_time = kwargs.get('start_time')
-        self.end_time = kwargs.get('end_time')
-        self.rate = kwargs.get('rate')
-        self.cost = kwargs.get('cost')
+        self.start_time = utils.make_decimal(kwargs.get('start_time', 0))
+        self.end_time = utils.make_decimal(kwargs.get('end_time', 0))
+        self.rate = utils.make_decimal(kwargs.get('rate', 0))
+        self.cost = utils.make_decimal(kwargs.get('cost', 0))
         self.metadata = kwargs.get('metadata')
 
     @classmethod
@@ -87,10 +87,10 @@ class Consumption(object):
             'user_id': self.user_id,
             'resource_id': self.resource_id,
             'resource_type': self.resource_type,
-            'start_time': self.start_time,
-            'end_time': self.end_time,
-            'rate': self.rate,
-            'cost': self.cost,
+            'start_time': utils.format_decimal(self.start_time),
+            'end_time': utils.format_decimal(self.end_time),
+            'rate': utils.format_decimal(self.rate),
+            'cost': utils.format_decimal(self.cost),
             'meta_data': self.metadata,
         }
 
@@ -109,10 +109,10 @@ class Consumption(object):
             'user_id': self.user_id,
             'resource_id': self.resource_id,
             'resource_type': self.resource_type,
-            'start_time': utils.format_time(self.start_time),
-            'end_time': utils.format_time(self.end_time),
-            'rate': self.rate,
-            'cost': self.cost,
+            'start_time': utils.dec2str(self.start_time),
+            'end_time': utils.dec2str(self.end_time),
+            'rate': utils.dec2str(self.rate),
+            'cost': utils.dec2str(self.cost),
             'metadata': self.metadata,
         }
         return consumption

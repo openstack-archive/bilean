@@ -15,7 +15,9 @@ Utilities module.
 '''
 
 import datetime
+import decimal
 import random
+import six
 import string
 
 from cryptography.fernet import Fernet
@@ -27,6 +29,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import encodeutils
 from oslo_utils import strutils
+from oslo_utils import timeutils
 
 from bilean.common import exception
 from bilean.common.i18n import _
@@ -156,3 +159,38 @@ def format_time(value):
         value = value.replace(microsecond=0)
         value = value.isoformat()
     return value
+
+
+def format_time_to_seconds(t):
+    """Format datetime to seconds from 1970-01-01 00:00:00 UTC."""
+    epoch = datetime.datetime.utcfromtimestamp(0)
+    if isinstance(t, datetime.datetime):
+        return (t - epoch).total_seconds()
+    if isinstance(t, six.string_types):
+        dt = timeutils.parse_strtime(t)
+        return (dt - epoch).total_seconds()
+    return t
+
+
+def make_decimal(value):
+    """Format float to decimal."""
+    if isinstance(value, decimal.Decimal):
+        return value
+    if isinstance(value, float):
+        return decimal.Decimal.from_float(value)
+    return decimal.Decimal(str(value))
+
+
+def format_decimal(value, num=8):
+    """Format decimal and keep num decimals."""
+    if not isinstance(value, decimal.Decimal):
+        value = make_decimal(value)
+    dec = "0.%s" % ('0' * num)
+    return value.quantize(decimal.Decimal(dec))
+
+
+def dec2str(value):
+    """Decimal to str and keep 2 decimals."""
+    if not isinstance(value, decimal.Decimal):
+        value = make_decimal(value)
+    return str(value.quantize(decimal.Decimal('0.00')))

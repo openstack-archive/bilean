@@ -22,6 +22,7 @@ from taskflow.types import failure as ft
 
 from bilean.common import exception
 from bilean.common.i18n import _LE
+from bilean.common import utils
 from bilean.engine import policy as policy_mod
 from bilean.engine import user as user_mod
 from bilean.plugins import base as plugin_base
@@ -77,7 +78,7 @@ class CreateResourceTask(task.Task):
 
             # Update resource with rule_id and rate
             resource.rule_id = rule.id
-            resource.rate = rule.get_price(resource)
+            resource.rate = utils.make_decimal(rule.get_price(resource))
         resource.store(context)
 
     def revert(self, context, resource, result, **kwargs):
@@ -96,7 +97,7 @@ class UpdateResourceTask(task.Task):
         old_rate = resource.rate
         resource.properties = values.get('properties')
         rule = plugin_base.Rule.load(context, rule_id=resource.rule_id)
-        resource.rate = rule.get_price(resource)
+        resource.rate = utils.make_decimal(rule.get_price(resource))
         resource.delta_rate = resource.rate - old_rate
         resource.store(context)
 
@@ -177,8 +178,7 @@ class UpdateUserRateTask(task.Task):
 
     def execute(self, context, user_obj, user_bak, resource, *args, **kwargs):
         user_obj.update_rate(context, resource.delta_rate,
-                             timestamp=resource.last_bill,
-                             delayed_cost=resource.delayed_cost)
+                             timestamp=resource.last_bill)
 
     def revert(self, context, user_obj, user_bak, resource, result,
                *args, **kwargs):

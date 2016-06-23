@@ -12,6 +12,7 @@
 #    under the License.
 
 import six
+import time
 
 from bilean.common import exception
 from bilean.common.i18n import _
@@ -24,8 +25,8 @@ from bilean.plugins import base as plugin_base
 
 from oslo_config import cfg
 from oslo_log import log as logging
-from oslo_utils import timeutils
 
+wallclock = time.time
 LOG = logging.getLogger(__name__)
 
 
@@ -38,16 +39,14 @@ class User(object):
         'INIT', 'FREE', 'ACTIVE', 'WARNING', 'FREEZE',
     )
 
-    ALLOW_DELAY_TIME = 10
-
     def __init__(self, user_id, **kwargs):
         self.id = user_id
         self.name = kwargs.get('name')
         self.policy_id = kwargs.get('policy_id')
-        self.balance = kwargs.get('balance', 0)
-        self.rate = kwargs.get('rate', 0.0)
+        self.balance = utils.make_decimal(kwargs.get('balance', 0))
+        self.rate = utils.make_decimal(kwargs.get('rate', 0))
         self.credit = kwargs.get('credit', 0)
-        self.last_bill = kwargs.get('last_bill')
+        self.last_bill = utils.make_decimal(kwargs.get('last_bill', 0))
 
         self.status = kwargs.get('status', self.INIT)
         self.status_reason = kwargs.get('status_reason', 'Init user')
@@ -65,10 +64,10 @@ class User(object):
         values = {
             'name': self.name,
             'policy_id': self.policy_id,
-            'balance': self.balance,
-            'rate': self.rate,
+            'balance': utils.format_decimal(self.balance),
+            'rate': utils.format_decimal(self.rate),
             'credit': self.credit,
-            'last_bill': self.last_bill,
+            'last_bill': utils.format_decimal(self.last_bill),
             'status': self.status,
             'status_reason': self.status_reason,
             'created_at': self.created_at,
@@ -156,7 +155,7 @@ class User(object):
         if not realtime:
             return u
         if u.rate > 0 and u.status != u.FREEZE:
-            seconds = (timeutils.utcnow() - u.last_bill).total_seconds()
+            seconds = utils.make_decimal(wallclock()) - u.last_bill
             u.balance -= u.rate * seconds
         return u
 
@@ -194,10 +193,10 @@ class User(object):
             'id': self.id,
             'name': self.name,
             'policy_id': self.policy_id,
-            'balance': self.balance,
-            'rate': self.rate,
+            'balance': utils.dec2str(self.balance),
+            'rate': utils.dec2str(self.rate),
             'credit': self.credit,
-            'last_bill': utils.format_time(self.last_bill),
+            'last_bill': utils.dec2str(self.last_bill),
             'status': self.status,
             'status_reason': self.status_reason,
             'created_at': utils.format_time(self.created_at),
@@ -213,7 +212,7 @@ class User(object):
             self.status_reason = reason
         self.store(context)
 
-    def update_rate(self, context, delta_rate, timestamp=None, delayed_cost=0):
+    def update_rate(self, context, delta_rate, timestamp=None):
         """Update user's rate and update user status.
 
         :param context: The request context.
@@ -223,18 +222,15 @@ class User(object):
                              adjust balance by delayed_cost.
         """
 
-        if delta_rate == 0 and delayed_cost == 0:
-            return
-
         # Settle account before update rate
-        self._settle_account(context, timestamp=timestamp,
-                             delayed_cost=delayed_cost)
+        self._settle_account(context, delta_rate=delta_rate,
+                             timestamp=timestamp)
 
         old_rate = self.rate
         new_rate = old_rate + delta_rate
         if old_rate == 0 and new_rate > 0:
             # Set last_bill when status change to 'ACTIVE' from 'FREE'
-            self.last_bill = timeutils.utcnow()
+            self.last_bill = timestamp or wallclock()
             reason = _("Status change to 'ACTIVE' cause resource creation.")
             self.status = self.ACTIVE
             self.status_reason = reason
@@ -262,7 +258,7 @@ class User(object):
         param timestamp: Record when recharge action occurs.
         param metadata: Some other keyword.
         """
-        self.balance += value
+        self.balance += utils.make_decimal(value)
         if self.status == self.INIT and self.balance > 0:
             self.status = self.FREE
             self.status_reason = "Recharged"
@@ -293,31 +289,31 @@ class User(object):
                             'bilean.scheduler.cron_scheduler',
                             group='scheduler')
         prior_notify_time = cfg.CONF.scheduler.prior_notify_time * 3600
-        rest_usage = prior_notify_time * self.rate
-        if self.balance > rest_usage:
-            return False
-        return True
+        rest_usage = utils.make_decimal(prior_notify_time) * self.rate
+        return self.balance < rest_usage
 
     def do_delete(self, context):
         db_api.user_delete(context, self.id)
         return True
 
-    def _settle_account(self, context, timestamp=None, delayed_cost=0):
-        if self.rate == 0 and delayed_cost == 0:
+    def _settle_account(self, context, delta_rate=0, timestamp=None):
+        if self.rate == 0:
             LOG.info(_LI("Ignore settlement action because user is in '%s' "
                          "status."), self.status)
             return
 
-        # Calculate user's cost before last_bill and now
-        cost = 0
-        if self.rate > 0 and self.last_bill:
-            timestamp = timestamp or timeutils.utcnow()
-            total_seconds = (timestamp - self.last_bill).total_seconds()
-            cost = self.rate * total_seconds
+        # Calculate user's cost between last_bill and now
+        now = utils.make_decimal(wallclock())
+        delayed_cost = 0
+        if delta_rate != 0:
+            delayed_seconds = now - timestamp
+            delayed_cost = delayed_seconds * utils.make_decimal(delta_rate)
+        usage_seconds = now - self.last_bill
+        cost = self.rate * usage_seconds
         total_cost = cost + delayed_cost
 
         self.balance -= total_cost
-        self.last_bill = timestamp
+        self.last_bill = now
 
     def settle_account(self, context, task=None):
         '''Settle account for user.'''

@@ -10,6 +10,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import time
+
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import timeutils
@@ -22,6 +24,7 @@ from bilean.db import api as db_api
 from bilean.engine import consumption as consumption_mod
 from bilean.engine import environment
 
+wallclock = time.time
 LOG = logging.getLogger(__name__)
 
 
@@ -233,8 +236,6 @@ class Resource(object):
     something else.
     """
 
-    ALLOW_DELAY_TIME = 10
-
     def __new__(cls, id, user_id, res_type, properties, **kwargs):
         """Create a new resource of the appropriate class.
 
@@ -258,8 +259,8 @@ class Resource(object):
         self.properties = properties
 
         self.rule_id = kwargs.get('rule_id')
-        self.rate = kwargs.get('rate', 0)
-        self.last_bill = kwargs.get('last_bill')
+        self.rate = utils.make_decimal(kwargs.get('rate', 0))
+        self.last_bill = utils.make_decimal(kwargs.get('last_bill', 0))
 
         self.created_at = kwargs.get('created_at')
         self.updated_at = kwargs.get('updated_at')
@@ -267,7 +268,6 @@ class Resource(object):
 
         # Properties pass to user to help settle account, not store to db
         self.delta_rate = 0
-        self.delayed_cost = 0
         self.consumption = None
 
     def store(self, context):
@@ -278,8 +278,8 @@ class Resource(object):
             'resource_type': self.resource_type,
             'properties': self.properties,
             'rule_id': self.rule_id,
-            'rate': self.rate,
-            'last_bill': self.last_bill,
+            'rate': utils.format_decimal(self.rate),
+            'last_bill': utils.format_decimal(self.last_bill),
             'created_at': self.created_at,
             'updated_at': self.updated_at,
             'deleted_at': self.deleted_at,
@@ -304,19 +304,13 @@ class Resource(object):
             self.created_at = resource.created_at
             return
 
-        now = timeutils.utcnow()
-        self.last_bill = now
+        self.last_bill = utils.make_decimal(wallclock())
         create_time = self.properties.get('created_at')
         if create_time is not None:
-            created_at = timeutils.parse_strtime(create_time)
-            delayed_seconds = (now - created_at).total_seconds()
-            # Engine handle resource creation is delayed because of something,
-            # we suppose less than ALLOW_DELAY_TIME is acceptable.
-            if delayed_seconds > self.ALLOW_DELAY_TIME:
-                self.delayed_cost = self.delta_rate * delayed_seconds
-                self.last_bill = created_at
+            sec = utils.format_time_to_seconds(create_time)
+            self.last_bill = utils.make_decimal(sec)
 
-        values.update(last_bill=self.last_bill)
+        values.update(last_bill=utils.format_decimal(self.last_bill))
         resource = db_api.resource_create(context, values)
         self.created_at = resource.created_at
 
@@ -326,19 +320,14 @@ class Resource(object):
             return
 
         update_time = self.properties.get('updated_at')
-        now = timeutils.utcnow()
-        updated_at = now
+        updated_at = utils.make_decimal(wallclock())
         if update_time is not None:
-            updated_at = timeutils.parse_strtime(update_time)
-            delayed_seconds = (now - updated_at).total_seconds()
-            # Engine handle resource update is delayed because of something,
-            # we suppose less than ALLOW_DELAY_TIME is acceptable.
-            if delayed_seconds > self.ALLOW_DELAY_TIME:
-                self.delayed_cost = self.delta_rate * delayed_seconds
+            sec = utils.format_time_to_seconds(update_time)
+            updated_at = utils.make_decimal(sec)
 
         # Generate consumption between lass bill and update time
         old_rate = self.rate - self.delta_rate
-        cost = (updated_at - self.last_bill).total_seconds() * old_rate
+        cost = (updated_at - self.last_bill) * old_rate
         params = {'resource_id': self.id,
                   'resource_type': self.resource_type,
                   'start_time': self.last_bill,
@@ -349,7 +338,7 @@ class Resource(object):
         self.consumption = consumption_mod.Consumption(self.user_id, **params)
 
         self.last_bill = updated_at
-        values.update(last_bill=updated_at)
+        values.update(last_bill=utils.format_decimal(updated_at))
         db_api.resource_update(context, self.id, values)
 
     def _delete(self, context, soft_delete=True):
@@ -359,18 +348,13 @@ class Resource(object):
             return
 
         delete_time = self.properties.get('deleted_at')
-        now = timeutils.utcnow()
-        deleted_at = now
+        deleted_at = utils.make_decimal(wallclock())
         if delete_time is not None:
-            deleted_at = timeutils.parse_strtime(delete_time)
-            delayed_seconds = (now - deleted_at).total_seconds()
-            # Engine handle resource deletion is delayed because of something,
-            # we suppose less than ALLOW_DELAY_TIME is acceptable.
-            if delayed_seconds > self.ALLOW_DELAY_TIME:
-                self.delayed_cost = self.delta_rate * delayed_seconds
+            sec = utils.format_time_to_seconds(delete_time)
+            deleted_at = utils.make_decimal(sec)
 
         # Generate consumption between lass bill and delete time
-        cost = (deleted_at - self.last_bill).total_seconds() * self.rate
+        cost = (deleted_at - self.last_bill) * self.rate
         params = {'resource_id': self.id,
                   'resource_type': self.resource_type,
                   'start_time': self.last_bill,
@@ -447,8 +431,8 @@ class Resource(object):
             'resource_type': self.resource_type,
             'properties': self.properties,
             'rule_id': self.rule_id,
-            'rate': self.rate,
-            'last_bill': utils.format_time(self.last_bill),
+            'rate': utils.dec2str(self.rate),
+            'last_bill': utils.dec2str(self.last_bill),
             'created_at': utils.format_time(self.created_at),
             'updated_at': utils.format_time(self.updated_at),
             'deleted_at': utils.format_time(self.deleted_at),

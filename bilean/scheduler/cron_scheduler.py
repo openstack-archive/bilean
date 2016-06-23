@@ -179,7 +179,7 @@ class CronScheduler(object):
     def _add_notify_job(self, user):
         if user.rate == 0:
             return False
-        total_seconds = user.balance / user.rate
+        total_seconds = float(user.balance / user.rate)
         prior_notify_time = cfg.CONF.scheduler.prior_notify_time * 3600
         notify_seconds = total_seconds - prior_notify_time
         notify_seconds = notify_seconds if notify_seconds > 0 else 0
@@ -198,7 +198,7 @@ class CronScheduler(object):
     def _add_freeze_job(self, user):
         if user.rate == 0:
             return False
-        total_seconds = user.balance / user.rate
+        total_seconds = float(user.balance / user.rate)
         run_date = timeutils.utcnow() + timedelta(seconds=total_seconds)
         job_params = {'run_date': run_date}
         job_id = self._generate_job_id(user.id, self.FREEZE)
