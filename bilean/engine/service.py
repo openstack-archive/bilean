@@ -34,6 +34,7 @@ from bilean.common import schema
 from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.engine.actions import base as action_mod
+from bilean.engine import consumption as cons_mod
 from bilean.engine import dispatcher
 from bilean.engine import environment
 from bilean.engine import event as event_mod
@@ -679,3 +680,71 @@ class EngineService(service.Service):
         self.TG.start_action(self.engine_id, action_id=action_id)
 
         LOG.info(_LI('User settle_account action queued: %s'), action_id)
+
+    @request_context
+    def consumption_list(self, cnxt, user_id=None, limit=None,
+                         marker=None, sort_keys=None, sort_dir=None,
+                         filters=None, project_safe=True):
+        if limit is not None:
+            limit = utils.parse_int_param('limit', limit)
+
+        consumptions = cons_mod.Consumption.load_all(cnxt,
+                                                     user_id=user_id,
+                                                     limit=limit,
+                                                     marker=marker,
+                                                     sort_keys=sort_keys,
+                                                     sort_dir=sort_dir,
+                                                     filters=filters,
+                                                     project_safe=project_safe)
+        return [c.to_dict() for c in consumptions]
+
+    @request_context
+    def consumption_statistics(self, cnxt, user_id=None, filters=None,
+                               start_time=None, end_time=None,
+                               project_safe=True):
+        result = {}
+        if start_time is None:
+            start_time = 0
+        else:
+            start_time = utils.format_time_to_seconds(start_time)
+            start_time = utils.make_decimal(start_time)
+
+        now_time = utils.format_time_to_seconds(timeutils.utcnow())
+        now_time = utils.make_decimal(now_time)
+        if end_time is None:
+            end_time = now_time
+        else:
+            end_time = utils.format_time_to_seconds(end_time)
+            end_time = utils.make_decimal(end_time)
+
+        consumptions = cons_mod.Consumption.load_all(cnxt, user_id=user_id,
+                                                     project_safe=project_safe)
+        for cons in consumptions:
+            if cons.start_time > end_time or cons.end_time < start_time:
+                continue
+            et = min(cons.end_time, end_time)
+            st = max(cons.start_time, start_time)
+            seconds = et - st
+            cost = cons.rate * seconds
+            if cons.resource_type not in result:
+                result[cons.resource_type] = cost
+            else:
+                result[cons.resource_type] += cost
+
+        resources = plugin_base.Resource.load_all(cnxt, user_id=user_id,
+                                                  project_safe=project_safe)
+        for res in resources:
+            if res.last_bill > end_time or now_time < start_time:
+                continue
+            et = min(now_time, end_time)
+            st = max(res.last_bill, start_time)
+            seconds = et - st
+            cost = res.rate * seconds
+            if res.resource_type not in result:
+                result[res.resource_type] = cost
+            else:
+                result[res.resource_type] += cost
+
+        for key in six.iterkeys(result):
+            result[key] = utils.dec2str(result[key])
+        return result

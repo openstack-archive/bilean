@@ -67,11 +67,14 @@ class Consumption(object):
         return cls.from_db_record(record)
 
     @classmethod
-    def load_all(cls, context, limit=None, marker=None, sort_keys=None,
-                 sort_dir=None, filters=None, project_safe=True):
+    def load_all(cls, context, user_id=None, limit=None, marker=None,
+                 sort_keys=None, sort_dir=None, filters=None,
+                 project_safe=True):
         '''Retrieve all consumptions from database.'''
 
-        records = db_api.consumption_get_all(context, limit=limit,
+        records = db_api.consumption_get_all(context,
+                                             user_id=user_id,
+                                             limit=limit,
                                              marker=marker,
                                              filters=filters,
                                              sort_keys=sort_keys,

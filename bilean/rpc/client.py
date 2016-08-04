@@ -210,3 +210,25 @@ class EngineClient(object):
         return self.call(ctxt, self.make_msg('settle_account',
                                              user_id=user_id,
                                              task=task))
+
+    # consumptions
+    def consumption_list(self, ctxt, user_id=None, limit=None, marker=None,
+                         sort_keys=None, sort_dir=None, filters=None,
+                         project_safe=True):
+        return self.call(ctxt, self.make_msg('consumption_list',
+                                             user_id=user_id,
+                                             limit=limit, marker=marker,
+                                             sort_keys=sort_keys,
+                                             sort_dir=sort_dir,
+                                             filters=filters,
+                                             project_safe=project_safe))
+
+    def consumption_statistics(self, ctxt, user_id=None, filters=None,
+                               start_time=None, end_time=None,
+                               project_safe=True):
+        return self.call(ctxt, self.make_msg('consumption_statistics',
+                                             user_id=user_id,
+                                             filters=filters,
+                                             start_time=start_time,
+                                             end_time=end_time,
+                                             project_safe=project_safe))
