@@ -881,14 +881,17 @@ def consumption_get(context, consumption_id, project_safe=True):
     return consumption
 
 
-def consumption_get_all(context, limit=None, marker=None, sort_keys=None,
-                        sort_dir=None, filters=None, project_safe=True):
+def consumption_get_all(context, user_id=None, limit=None, marker=None,
+                        sort_keys=None, sort_dir=None, filters=None,
+                        project_safe=True):
     query = model_query(context, models.Consumption)
 
     if context.is_admin:
         project_safe = False
     if project_safe:
         query = query.filter_by(user_id=context.project)
+    elif user_id:
+        query = query.filter_by(user_id=user_id)
     if filters is None:
         filters = {}
 

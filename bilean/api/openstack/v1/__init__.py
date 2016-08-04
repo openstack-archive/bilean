@@ -13,6 +13,7 @@
 
 import routes
 
+from bilean.api.openstack.v1 import consumptions
 from bilean.api.openstack.v1 import events
 from bilean.api.openstack.v1 import policies
 from bilean.api.openstack.v1 import resources
@@ -171,5 +172,22 @@ class API(wsgi.Router):
                                  "",
                                  action="index",
                                  conditions={'method': 'GET'})
+
+        # Consumptions
+        cons_resource = consumptions.create_resource(conf)
+        cons_path = "/consumptions"
+        with mapper.submapper(controller=cons_resource,
+                              path_prefix=cons_path) as cons_mapper:
+
+            # Consumption collection
+            cons_mapper.connect("consumption_index",
+                                "",
+                                action="index",
+                                conditions={'method': 'GET'})
+
+            cons_mapper.connect("consumption_statistics",
+                                "/statistics",
+                                action="statistics",
+                                conditions={'method': 'GET'})
 
         super(API, self).__init__(mapper)
