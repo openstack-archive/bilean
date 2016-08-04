@@ -8,7 +8,7 @@
           fields: payload.instance_id
 - event_type: volume.*.end
   resources:
-    - resource_type: volume
+    - resource_type: os.cinder.volume
       traits:
         size:
           fields: payload.size

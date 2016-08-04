@@ -19,5 +19,8 @@
     "policies:index": "role:admin",
     "policies:create": "role:admin",
     "policies:get": "role:admin",
-    "policies:action": "role:admin"
+    "policies:action": "role:admin",
+
+    "consumptions:index": "",
+    "consumptions:statistics": "",
 }

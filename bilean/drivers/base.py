@@ -51,3 +51,4 @@ class BileanDriver(object):
         self.compute = backend.compute
         self.network = backend.network
         self.identity = backend.identity
+        self.block_store = backend.block_store

@@ -10,6 +10,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+from bilean.drivers.openstack import cinder_v2
 from bilean.drivers.openstack import keystone_v3
 from bilean.drivers.openstack import neutron_v2
 from bilean.drivers.openstack import nova_v2
@@ -18,3 +19,4 @@ from bilean.drivers.openstack import nova_v2
 compute = nova_v2.NovaClient
 identity = keystone_v3.KeystoneClient
 network = neutron_v2.NeutronClient
+block_store = cinder_v2.CinderClient
