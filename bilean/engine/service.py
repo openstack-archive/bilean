@@ -718,6 +718,7 @@ class EngineService(service.Service):
             end_time = utils.make_decimal(end_time)
 
         consumptions = cons_mod.Consumption.load_all(cnxt, user_id=user_id,
+                                                     filters=filters,
                                                      project_safe=project_safe)
         for cons in consumptions:
             if cons.start_time > end_time or cons.end_time < start_time:
@@ -732,6 +733,7 @@ class EngineService(service.Service):
                 result[cons.resource_type] += cost
 
         resources = plugin_base.Resource.load_all(cnxt, user_id=user_id,
+                                                  filters=filters,
                                                   project_safe=project_safe)
         for res in resources:
             if res.last_bill > end_time or now_time < start_time:
