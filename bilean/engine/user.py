@@ -223,8 +223,7 @@ class User(object):
         """
 
         # Settle account before update rate
-        self._settle_account(context, delta_rate=delta_rate,
-                             timestamp=timestamp)
+        self._settle_account(context, timestamp=timestamp)
 
         old_rate = self.rate
         new_rate = old_rate + delta_rate
@@ -296,30 +295,23 @@ class User(object):
         db_api.user_delete(context, self.id)
         return True
 
-    def _settle_account(self, context, delta_rate=0, timestamp=None):
+    def _settle_account(self, context, timestamp=None):
         if self.rate == 0:
             LOG.info(_LI("Ignore settlement action because user is in '%s' "
                          "status."), self.status)
             return
-
-        # Calculate user's cost between last_bill and now
-        now = utils.make_decimal(wallclock())
-        delayed_cost = 0
-        if delta_rate != 0:
-            delayed_seconds = now - timestamp
-            delayed_cost = delayed_seconds * utils.make_decimal(delta_rate)
+        now = timestamp or utils.make_decimal(wallclock())
         usage_seconds = now - self.last_bill
         cost = self.rate * usage_seconds
-        total_cost = cost + delayed_cost
-
-        self.balance -= total_cost
+        self.balance -= cost
         self.last_bill = now
 
     def settle_account(self, context, task=None):
         '''Settle account for user.'''
 
         notifier = bilean_notifier.Notifier()
-        self._settle_account(context)
+        timestamp = utils.make_decimal(wallclock())
+        self._settle_account(context, timestamp=timestamp)
 
         if task == 'notify' and self._notify_or_not():
             self.status_reason = "The balance is almost used up"
@@ -334,7 +326,7 @@ class User(object):
             resources = plugin_base.Resource.load_all(
                 context, user_id=self.id, project_safe=False)
             for resource in resources:
-                resource.do_delete(context)
+                resource.do_delete(context, timestamp=timestamp)
             self.rate = 0
             self.status = self.FREEZE
             self.status_reason = reason

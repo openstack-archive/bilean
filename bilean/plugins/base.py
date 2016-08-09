@@ -293,9 +293,9 @@ class Resource(object):
 
         return self.id
 
-    def delete(self, context, soft_delete=True):
+    def delete(self, context, timestamp=None, soft_delete=True):
         '''Delete resource from db.'''
-        self._delete(context, soft_delete=soft_delete)
+        self._delete(context, timestamp=timestamp, soft_delete=soft_delete)
 
     def _create(self, context, values):
         self.delta_rate = self.rate
@@ -341,14 +341,14 @@ class Resource(object):
         values.update(last_bill=utils.format_decimal(updated_at))
         db_api.resource_update(context, self.id, values)
 
-    def _delete(self, context, soft_delete=True):
+    def _delete(self, context, timestamp=None, soft_delete=True):
         self.delta_rate = - self.rate
         if self.delta_rate == 0:
             db_api.resource_delete(context, self.id, soft_delete=soft_delete)
             return
 
+        deleted_at = timestamp or utils.make_decimal(wallclock())
         delete_time = self.properties.get('deleted_at')
-        deleted_at = utils.make_decimal(wallclock())
         if delete_time is not None:
             sec = utils.format_time_to_seconds(delete_time)
             deleted_at = utils.make_decimal(sec)

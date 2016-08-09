@@ -29,6 +29,7 @@ from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common.i18n import _LE
 from bilean.common.i18n import _LI
+from bilean.common.i18n import _LW
 from bilean.common import messaging as rpc_messaging
 from bilean.common import schema
 from bilean.common import utils
@@ -487,8 +488,8 @@ class EngineService(service.Service):
         try:
             plugin_base.Resource.load(cnxt, resource_id=resource_id)
         except exception.ResourceNotFound:
-            LOG.error(_LE('The resource(%s) trying to delete not found.'),
-                      resource_id)
+            LOG.warn(_LW('The resource(%s) trying to delete not found.'),
+                     resource_id)
             return
 
         params = {

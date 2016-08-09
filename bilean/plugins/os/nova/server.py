@@ -18,7 +18,6 @@ from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common.i18n import _LE
 from bilean.common import schema
-from bilean.db import api as db_api
 from bilean.drivers import base as driver_base
 from bilean.plugins import base
 
@@ -105,11 +104,13 @@ class ServerResource(base.Resource):
         # TODO(ldb)
         return NotImplemented
 
-    def do_delete(self, context, ignore_missing=True, timeout=None):
+    def do_delete(self, context, timestamp=None, ignore_missing=True,
+                  timeout=None):
         '''Delete resource from other services.'''
 
-        # Delete resource from db
-        db_api.resource_delete(context, self.id)
+        # Delete resource from db and generate consumption
+        self.delete(context, timestamp=timestamp)
+        self.consumption.store(context)
 
         # Delete resource from nova
         novaclient = driver_base.BileanDriver().compute()

@@ -175,12 +175,12 @@ def warning(context, entity, action, status=None, status_reason=None,
                   action=action, status=status, status_reason=status_reason,
                   user_id=context.project)
     event.store(context)
-    LOG.warning(_LW('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s'),
-                {'name': event.obj_name,
-                 'id': event.obj_id and event.obj_id[:8],
-                 'action': action,
-                 'status': status,
-                 'reason': status_reason})
+    LOG.warn(_LW('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s'),
+             {'name': event.obj_name,
+              'id': event.obj_id and event.obj_id[:8],
+              'action': action,
+              'status': status,
+              'reason': status_reason})
 
 
 def info(context, entity, action, status=None, status_reason=None,

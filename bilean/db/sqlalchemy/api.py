@@ -733,7 +733,7 @@ def action_acquire(context, action_id, owner, timestamp):
         if action.status != consts.ACTION_READY:
             msg = _('The action is not in an executable status: '
                     '%s') % action.status
-            LOG.warning(msg)
+            LOG.warn(msg)
             return None
         action.owner = owner
         action.start_time = timestamp
