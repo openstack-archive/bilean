@@ -555,6 +555,10 @@ class EngineService(service.Service):
             'metadata': metadata,
         }
         policy = policy_mod.Policy(name, **kwargs)
+        if not policy.is_default:
+            default_policy = policy_mod.Policy.load_default(cnxt)
+            if default_policy is None:
+                policy.is_default = True
         policy.store(cnxt)
         LOG.info(_LI("Successfully create policy (%s)."), policy.id)
         return policy.to_dict()

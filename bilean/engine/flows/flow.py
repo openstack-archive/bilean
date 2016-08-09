@@ -69,10 +69,14 @@ class CreateResourceTask(task.Task):
 
     def execute(self, context, resource, **kwargs):
         user = user_mod.User.load(context, user_id=resource.user_id)
+        pid = user.policy_id
         try:
-            policy = policy_mod.Policy.load(context, policy_id=user.policy_id)
-        except exception.PolicyNotFound:
-            policy = policy_mod.Policy.load_default(context)
+            if pid:
+                policy = policy_mod.Policy.load(context, policy_id=pid)
+            else:
+                policy = policy_mod.Policy.load_default(context)
+        except exception.PolicyNotFound as e:
+            LOG.error(_LE("Error when find policy: %s"), e)
         if policy is not None:
             rule = policy.find_rule(context, resource.resource_type)
 

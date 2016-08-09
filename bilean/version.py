@@ -14,4 +14,4 @@
 
 import pbr.version
 
-version_info = pbr.version.VersionInfo('nova')
+version_info = pbr.version.VersionInfo('bilean')
