@@ -68,9 +68,14 @@ class ConsumptionController(object):
             'user_id': 'single',
             'start_time': 'single',
             'end_time': 'single',
+            'summary': 'single',
         }
         params = util.get_allowed_params(req.params, param_whitelist)
         filters = util.get_allowed_params(req.params, filter_whitelist)
+
+        key = consts.PARAM_SUMMARY
+        if key in params:
+            params[key] = utils.parse_bool_param(key, params[key])
 
         if not filters:
             filters = None

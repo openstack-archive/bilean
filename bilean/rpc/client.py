@@ -224,11 +224,12 @@ class EngineClient(object):
                                              project_safe=project_safe))
 
     def consumption_statistics(self, ctxt, user_id=None, filters=None,
-                               start_time=None, end_time=None,
+                               start_time=None, end_time=None, summary=False,
                                project_safe=True):
         return self.call(ctxt, self.make_msg('consumption_statistics',
                                              user_id=user_id,
                                              filters=filters,
                                              start_time=start_time,
                                              end_time=end_time,
+                                             summary=summary,
                                              project_safe=project_safe))

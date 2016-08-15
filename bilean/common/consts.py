@@ -54,11 +54,11 @@ ACTION_STATUSES = (
 RPC_PARAMS = (
     PARAM_SHOW_DELETED, PARAM_SHOW_NESTED, PARAM_LIMIT, PARAM_MARKER,
     PARAM_GLOBAL_PROJECT, PARAM_SHOW_DETAILS,
-    PARAM_SORT_DIR, PARAM_SORT_KEYS,
+    PARAM_SORT_DIR, PARAM_SORT_KEYS, PARAM_SUMMARY,
 ) = (
     'show_deleted', 'show_nested', 'limit', 'marker',
     'global_project', 'show_details',
-    'sort_dir', 'sort_keys',
+    'sort_dir', 'sort_keys', 'summary',
 )
 
 USER_KEYS = (

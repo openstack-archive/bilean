@@ -690,6 +690,7 @@ class EngineService(service.Service):
     def consumption_list(self, cnxt, user_id=None, limit=None,
                          marker=None, sort_keys=None, sort_dir=None,
                          filters=None, project_safe=True):
+        user_id = user_id or cnxt.project
         if limit is not None:
             limit = utils.parse_int_param('limit', limit)
 
@@ -705,8 +706,9 @@ class EngineService(service.Service):
 
     @request_context
     def consumption_statistics(self, cnxt, user_id=None, filters=None,
-                               start_time=None, end_time=None,
+                               start_time=None, end_time=None, summary=False,
                                project_safe=True):
+        user_id = user_id or cnxt.project
         result = {}
         if start_time is None:
             start_time = 0
@@ -732,10 +734,18 @@ class EngineService(service.Service):
             st = max(cons.start_time, start_time)
             seconds = et - st
             cost = cons.rate * seconds
-            if cons.resource_type not in result:
-                result[cons.resource_type] = cost
+            if summary:
+                if cons.resource_type not in result:
+                    result[cons.resource_type] = cost
+                else:
+                    result[cons.resource_type] += cost
             else:
-                result[cons.resource_type] += cost
+                if cons.resource_id not in result:
+                    tmp = {'resource_type': cons.resource_type,
+                           'cost': cost}
+                    result[cons.resource_id] = tmp
+                else:
+                    result[cons.resource_id]['cost'] += cost
 
         resources = plugin_base.Resource.load_all(cnxt, user_id=user_id,
                                                   filters=filters,
@@ -747,11 +757,32 @@ class EngineService(service.Service):
             st = max(res.last_bill, start_time)
             seconds = et - st
             cost = res.rate * seconds
-            if res.resource_type not in result:
-                result[res.resource_type] = cost
+            if summary:
+                if res.resource_type not in result:
+                    result[res.resource_type] = cost
+                else:
+                    result[res.resource_type] += cost
             else:
-                result[res.resource_type] += cost
+                if res.id not in result:
+                    tmp = {'resource_type': res.resource_type,
+                           'cost': cost}
+                    result[res.id] = tmp
+                else:
+                    result[res.id]['cost'] += cost
 
-        for key in six.iterkeys(result):
-            result[key] = utils.dec2str(result[key])
-        return result
+        if summary:
+            for key in six.iterkeys(result):
+                result[key] = utils.dec2str(result[key])
+            return result
+        else:
+            consumptions = []
+            for key in six.iterkeys(result):
+                consumption = cons_mod.Consumption(
+                    user_id,
+                    resource_id=key,
+                    resource_type=result[key]['resource_type'],
+                    cost=result[key]['cost'],
+                    start_time=start_time,
+                    end_time=end_time)
+                consumptions.append(consumption.to_dict())
+            return consumptions

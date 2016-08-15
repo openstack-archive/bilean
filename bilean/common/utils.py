@@ -167,7 +167,10 @@ def format_time_to_seconds(t):
     if isinstance(t, datetime.datetime):
         return (t - epoch).total_seconds()
     if isinstance(t, six.string_types):
-        dt = timeutils.parse_strtime(t)
+        try:
+            dt = timeutils.parse_strtime(t)
+        except ValueError:
+            dt = timeutils.normalize_time(timeutils.parse_isotime(t))
         return (dt - epoch).total_seconds()
     return t
 
