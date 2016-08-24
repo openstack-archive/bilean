@@ -24,7 +24,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import timeutils
 
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers import background
 from datetime import timedelta
 import random
 import six
@@ -71,7 +71,7 @@ class CronScheduler(object):
 
     def __init__(self, **kwargs):
         super(CronScheduler, self).__init__()
-        self._scheduler = BackgroundScheduler()
+        self._scheduler = background.BackgroundScheduler()
         self.scheduler_id = kwargs.get('scheduler_id')
         self.rpc_client = rpc_client.EngineClient()
         if cfg.CONF.scheduler.store_ap_job:

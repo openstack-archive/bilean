@@ -20,7 +20,7 @@ import random
 import six
 import string
 
-from cryptography.fernet import Fernet
+from cryptography import fernet
 import requests
 from requests import exceptions
 from six.moves import urllib
@@ -124,8 +124,8 @@ def encrypt(msg):
     :param msg: message to be encrypted
     :returns: encrypted msg and key to decrypt
     '''
-    password = Fernet.generate_key()
-    f = Fernet(password)
+    password = fernet.Fernet.generate_key()
+    f = fernet.Fernet(password)
     key = f.encrypt(encodeutils.safe_encode(msg))
     return encodeutils.safe_decode(password), encodeutils.safe_decode(key)
 
@@ -137,7 +137,7 @@ def decrypt(msg, key):
     :param key: key used to decrypt
     :returns: decrypted message string
     '''
-    f = Fernet(encodeutils.safe_encode(msg))
+    f = fernet.Fernet(encodeutils.safe_encode(msg))
     msg = f.decrypt(encodeutils.safe_encode(key))
 
     return encodeutils.safe_decode(msg)

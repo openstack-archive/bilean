@@ -11,25 +11,26 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from bilean.api.middleware.context import ContextMiddleware
-from bilean.api.middleware.fault import FaultWrapper
-from bilean.api.middleware.ssl import SSLMiddleware
-from bilean.api.middleware.version_negotiation import VersionNegotiationFilter
+from bilean.api.middleware import context
+from bilean.api.middleware import fault
+from bilean.api.middleware import ssl
+from bilean.api.middleware import version_negotiation
 from bilean.api.openstack import versions
 
 
 def version_negotiation_filter(app, conf, **local_conf):
-    return VersionNegotiationFilter(versions.Controller, app,
-                                    conf, **local_conf)
+    return version_negotiation.VersionNegotiationFilter(versions.Controller,
+                                                        app,
+                                                        conf, **local_conf)
 
 
 def faultwrap_filter(app, conf, **local_conf):
-    return FaultWrapper(app)
+    return fault.FaultWrapper(app)
 
 
 def sslmiddleware_filter(app, conf, **local_conf):
-    return SSLMiddleware(app)
+    return ssl.SSLMiddleware(app)
 
 
 def contextmiddleware_filter(app, conf, **local_conf):
-    return ContextMiddleware(app)
+    return context.ContextMiddleware(app)
