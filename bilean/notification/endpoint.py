@@ -14,6 +14,7 @@
 from bilean.common import context
 from bilean.common.i18n import _
 from bilean.common.i18n import _LE
+from bilean.common.i18n import _LI
 from bilean.notification import action as notify_action
 from bilean.notification import converter
 
@@ -59,7 +60,7 @@ class EventsNotificationEndpoint(object):
         action = self._get_action(notification['event_type'])
         if action:
             act = notify_action.UserAction(self.cnxt, action, user_id)
-            LOG.info(_("Notify engine to %(action)s user: %(user)s") %
+            LOG.info(_LI("Notify engine to %(action)s user: %(user)s") %
                      {'action': action, 'user': user_id})
             act.execute()
 
@@ -78,7 +79,7 @@ class EventsNotificationEndpoint(object):
             for resource in resources:
                 act = notify_action.ResourceAction(
                     self.cnxt, action, resource)
-                LOG.info(_("Notify engine to %(action)s resource: "
+                LOG.info(_LI("Notify engine to %(action)s resource: "
                            "%(resource)s") % {'action': action,
                                               'resource': resource})
                 act.execute()
@@ -90,5 +91,5 @@ class EventsNotificationEndpoint(object):
         for action in available_actions:
             if action in event_type:
                 return action
-        LOG.info(_("Can not get action info in event_type: %s") % event_type)
+        LOG.info(_LI("Can not get action info in event_type: %s") % event_type)
         return None
