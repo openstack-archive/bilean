@@ -228,8 +228,8 @@ class String(Schema):
     def resolve(self, value):
         try:
             return str(value)
-        except (TypeError, ValueError) as ex:
-            raise ex
+        except (TypeError, ValueError):
+            raise
 
     def validate(self, value, context=None):
         if not isinstance(value, six.string_types):
