@@ -19,8 +19,7 @@ from oslo_utils import timeutils
 
 from bilean.common import context as req_context
 from bilean.common import exception
-from bilean.common.i18n import _
-from bilean.common.i18n import _LE
+from bilean.common.i18n import _, _LE
 from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.engine import event as EVENT

@@ -47,10 +47,7 @@ import webob.dec
 import webob.exc
 
 from bilean.common import exception
-from bilean.common.i18n import _
-from bilean.common.i18n import _LE
-from bilean.common.i18n import _LI
-from bilean.common.i18n import _LW
+from bilean.common.i18n import _, _LE, _LI, _LW
 from bilean.common import serializers
 
 
