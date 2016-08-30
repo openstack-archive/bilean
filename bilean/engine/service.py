@@ -26,10 +26,7 @@ from oslo_utils import timeutils
 from bilean.common import consts
 from bilean.common import context as bilean_context
 from bilean.common import exception
-from bilean.common.i18n import _
-from bilean.common.i18n import _LE
-from bilean.common.i18n import _LI
-from bilean.common.i18n import _LW
+from bilean.common.i18n import _, _LE, _LI, _LW
 from bilean.common import messaging as rpc_messaging
 from bilean.common import schema
 from bilean.common import utils

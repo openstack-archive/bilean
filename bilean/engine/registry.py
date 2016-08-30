@@ -15,8 +15,7 @@ import six
 
 from oslo_log import log as logging
 
-from bilean.common.i18n import _LI
-from bilean.common.i18n import _LW
+from bilean.common.i18n import _LI, _LW
 
 LOG = logging.getLogger(__name__)
 

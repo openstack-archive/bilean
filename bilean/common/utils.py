@@ -32,8 +32,7 @@ from oslo_utils import strutils
 from oslo_utils import timeutils
 
 from bilean.common import exception
-from bilean.common.i18n import _
-from bilean.common.i18n import _LI
+from bilean.common.i18n import _, _LI
 
 cfg.CONF.import_opt('max_response_size', 'bilean.common.config')
 LOG = logging.getLogger(__name__)
