@@ -13,9 +13,7 @@
 
 from bilean.common import context as bilean_context
 from bilean.common import exception
-from bilean.common.i18n import _
-from bilean.common.i18n import _LI
-from bilean.common.i18n import _LW
+from bilean.common.i18n import _, _LI, _LW
 from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.engine import user as user_mod
