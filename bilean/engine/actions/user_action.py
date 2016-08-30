@@ -13,9 +13,7 @@
 import six
 
 from bilean.common import exception
-from bilean.common.i18n import _
-from bilean.common.i18n import _LE
-from bilean.common.i18n import _LI
+from bilean.common.i18n import _, _LE, _LI
 from bilean.engine.actions import base
 from bilean.engine import event as EVENT
 from bilean.engine.flows import flow as bilean_flow

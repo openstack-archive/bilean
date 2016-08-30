@@ -19,8 +19,7 @@ import oslo_messaging
 from oslo_service import service
 
 from bilean.common import consts
-from bilean.common.i18n import _LE
-from bilean.common.i18n import _LI
+from bilean.common.i18n import _LE, _LI
 from bilean.common import messaging as rpc_messaging
 from bilean.engine import user as user_mod
 from bilean.scheduler import cron_scheduler

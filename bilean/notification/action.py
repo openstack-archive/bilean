@@ -12,8 +12,7 @@
 #    under the License.
 
 from bilean.common import exception
-from bilean.common.i18n import _
-from bilean.common.i18n import _LE
+from bilean.common.i18n import _, _LE
 from bilean.rpc import client as rpc_client
 
 from oslo_log import log as logging

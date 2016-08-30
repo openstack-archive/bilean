@@ -12,9 +12,7 @@
 #    under the License.
 
 from bilean.common import context
-from bilean.common.i18n import _
-from bilean.common.i18n import _LE
-from bilean.common.i18n import _LI
+from bilean.common.i18n import _, _LE, _LI
 from bilean.notification import action as notify_action
 from bilean.notification import converter
 

@@ -19,9 +19,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 
 from bilean.common import exception
-from bilean.common.i18n import _
-from bilean.common.i18n import _LE
-from bilean.common.i18n import _LI
+from bilean.common.i18n import _, _LE, _LI
 from bilean.engine import parser
 from bilean.engine import registry
 

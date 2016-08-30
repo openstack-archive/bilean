@@ -15,8 +15,7 @@ import six
 import time
 
 from bilean.common import exception
-from bilean.common.i18n import _
-from bilean.common.i18n import _LI
+from bilean.common.i18n import _, _LI
 from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.drivers import base as driver_base

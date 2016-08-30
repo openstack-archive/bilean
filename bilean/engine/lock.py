@@ -16,9 +16,7 @@ from oslo_log import log as logging
 from oslo_utils import timeutils
 import time
 
-from bilean.common.i18n import _
-from bilean.common.i18n import _LE
-from bilean.common.i18n import _LI
+from bilean.common.i18n import _, _LE, _LI
 from bilean.db import api as db_api
 
 CONF = cfg.CONF
