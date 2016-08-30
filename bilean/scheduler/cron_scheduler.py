@@ -15,6 +15,7 @@ from bilean.common import context as bilean_context
 from bilean.common import exception
 from bilean.common.i18n import _
 from bilean.common.i18n import _LI
+from bilean.common.i18n import _LW
 from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.engine import user as user_mod
@@ -174,7 +175,7 @@ class CronScheduler(object):
                 db_api.job_delete(
                     admin_context, self._generate_job_id(user_id, task_type))
             except exception.NotFound as e:
-                LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
+                LOG.warn(_LW("Failed in deleting job: %s") % six.text_type(e))
 
     def _add_notify_job(self, user):
         if user.rate == 0:
@@ -240,7 +241,7 @@ class CronScheduler(object):
                     self._remove_job(job_id)
                     db_api.job_delete(admin_context, job_id)
             except Exception as e:
-                LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
+                LOG.warn(_LW("Failed in deleting job: %s") % six.text_type(e))
 
         if user.status == user.ACTIVE:
             self._add_notify_job(user)
@@ -257,7 +258,7 @@ class CronScheduler(object):
                     self._remove_job(job_id)
                     db_api.job_delete(admin_context, job_id)
             except Exception as e:
-                LOG.warn(_("Failed in deleting job: %s") % six.text_type(e))
+                LOG.warn(_LW("Failed in deleting job: %s") % six.text_type(e))
 
 
 def list_opts():
