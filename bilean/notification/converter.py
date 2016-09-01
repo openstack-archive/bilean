@@ -18,7 +18,7 @@ import six
 import yaml
 
 from bilean.common.i18n import _
-
+from bilean.common.i18n import _LI
 from oslo_config import cfg
 from oslo_log import log as logging
 from oslo_utils import timeutils
@@ -80,7 +80,7 @@ def setup_resources():
                   " Using default config."))
         resources_config = []
 
-    LOG.info(_("Resource Definitions: %s"), resources_config)
+    LOG.info(_LI("Resource Definitions: %s"), resources_config)
 
     allow_drop = cfg.CONF.resource_definition.drop_unmatched_notifications
     return NotificationResourcesConverter(resources_config,
