@@ -84,6 +84,15 @@ latex_documents = [
      u'%s Documentation' % project,
      u'OpenStack Foundation', 'manual'),
 ]
+# The version info for the project you're documenting, acts as replacement for
+# |version| and |release|, also used in various other places throughout the
+# built documents.
+#
+from bilean.version import version_info
+# The full version, including alpha/beta/rc tags.
+release = version_info.release_string()
+# The short X.Y version.
+version = version_info.version_string()
 
 # Example configuration for intersphinx: refer to the Python standard library.
 # intersphinx_mapping = {'http://docs.python.org/': None}
