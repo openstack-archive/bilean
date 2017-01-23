@@ -186,7 +186,7 @@ class CronScheduler(object):
         job_params = {'run_date': run_date}
         job_id = self._generate_job_id(user.id, self.NOTIFY)
         self._add_job(job_id, self.NOTIFY, **job_params)
-        # Save job to database
+        # Save jobs to database
         job = {'id': job_id,
                'job_type': self.NOTIFY,
                'scheduler_id': self.scheduler_id,
@@ -202,7 +202,7 @@ class CronScheduler(object):
         job_params = {'run_date': run_date}
         job_id = self._generate_job_id(user.id, self.FREEZE)
         self._add_job(job_id, self.FREEZE, **job_params)
-        # Save job to database
+        # Save jobs to database
         job = {'id': job_id,
                'job_type': self.FREEZE,
                'scheduler_id': self.scheduler_id,

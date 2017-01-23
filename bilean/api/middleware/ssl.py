@@ -28,7 +28,7 @@ class SSLMiddleware(ssl.SSLMiddleware):
 
     def __init__(self, application, *args, **kwargs):
         # NOTE(cbrandily): calling super(ssl.SSLMiddleware, self).__init__
-        # allows to define our opt (including a deprecation).
+        # allows defining our opt (including a deprecation).
         super(ssl.SSLMiddleware, self).__init__(application, *args, **kwargs)
         self.oslo_conf.register_opts(
             ssl_middleware_opts, group='oslo_middleware')
