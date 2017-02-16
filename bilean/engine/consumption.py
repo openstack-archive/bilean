@@ -15,10 +15,6 @@ from bilean.common import exception
 from bilean.common import utils
 from bilean.db import api as db_api
 
-from oslo_log import log as logging
-
-LOG = logging.getLogger(__name__)
-
 
 class Consumption(object):
     """Class reference to consumption record."""

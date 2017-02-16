@@ -23,10 +23,6 @@ from bilean.common import utils
 from bilean.common import wsgi
 from bilean.rpc import client as rpc_client
 
-from oslo_log import log as logging
-
-LOG = logging.getLogger(__name__)
-
 
 class UserController(object):
     """WSGI controller for Users in Bilean v1 API

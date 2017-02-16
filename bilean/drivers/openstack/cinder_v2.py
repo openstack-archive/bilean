@@ -10,12 +10,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from oslo_log import log
-
 from bilean.drivers import base
 from bilean.drivers.openstack import sdk
-
-LOG = log.getLogger(__name__)
 
 
 class CinderClient(base.DriverBase):

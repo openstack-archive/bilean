@@ -14,13 +14,10 @@ import collections
 import numbers
 import six
 
-from oslo_log import log as logging
 from oslo_utils import strutils
 
 from bilean.common import exception
 from bilean.common.i18n import _
-
-LOG = logging.getLogger(__name__)
 
 
 class AnyIndexDict(collections.Mapping):
