@@ -32,7 +32,7 @@ from oslo_utils import strutils
 from oslo_utils import timeutils
 
 from bilean.common import exception
-from bilean.common.i18n import _, _LI
+from bilean.common.i18n import _ 
 
 cfg.CONF.import_opt('max_response_size', 'bilean.common.config')
 LOG = logging.getLogger(__name__)
@@ -80,7 +80,7 @@ def url_fetch(url, allowed_schemes=('http', 'https')):
     the allowed_schemes argument.
     Raise an IOError if getting the data fails.
     '''
-    LOG.info(_LI('Fetching data from %s'), url)
+    LOG.info('Fetching data from %s', url)
 
     components = urllib.parse.urlparse(url)
 
