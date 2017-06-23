@@ -24,8 +24,6 @@ from bilean.common import messaging
 
 _lazy.enable_lazy()
 
-LOG = logging.getLogger('bilean.notification')
-
 
 def main():
     logging.register_options(cfg.CONF)

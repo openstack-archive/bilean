@@ -29,8 +29,6 @@ from oslo_service import service
 
 _lazy.enable_lazy()
 
-LOG = logging.getLogger('bilean.engine')
-
 
 def main():
     logging.register_options(cfg.CONF)

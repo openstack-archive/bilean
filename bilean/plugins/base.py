@@ -13,7 +13,6 @@
 import time
 
 from oslo_config import cfg
-from oslo_log import log as logging
 from oslo_utils import timeutils
 
 from bilean.common import exception
@@ -25,7 +24,6 @@ from bilean.engine import consumption as consumption_mod
 from bilean.engine import environment
 
 wallclock = time.time
-LOG = logging.getLogger(__name__)
 
 
 resource_opts = [

@@ -12,7 +12,6 @@
 #    under the License.
 
 from oslo_config import cfg
-from oslo_log import log as logging
 import oslo_messaging
 
 notifier_opts = [
@@ -22,8 +21,6 @@ notifier_opts = [
 
 CONF = cfg.CONF
 CONF.register_opts(notifier_opts)
-
-LOG = logging.getLogger(__name__)
 
 
 def get_transport():

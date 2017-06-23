@@ -24,7 +24,6 @@ from bilean.common.i18n import _
 from bilean.common import wsgi
 
 
-LOG = logging.getLogger(__name__)
 paste_deploy_group = cfg.OptGroup('paste_deploy')
 paste_deploy_opts = [
     cfg.StrOpt('api_paste_config', default="api-paste.ini",

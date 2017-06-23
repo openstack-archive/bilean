@@ -11,12 +11,9 @@
 # under the License.
 
 from oslo_config import cfg
-from oslo_log import log
 
 from bilean.drivers import base
 from bilean.drivers.openstack import sdk
-
-LOG = log.getLogger(__name__)
 
 
 class NovaClient(base.DriverBase):
