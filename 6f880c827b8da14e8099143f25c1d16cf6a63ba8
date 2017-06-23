@@ -1,0 +1,8 @@
+Code-Review+2: wanghuagong <huagong.wang@kylin-cloud.com>
+Workflow+1: lvdongbing <dongbing.lv@kylin-cloud.com>
+Verified+2: Jenkins
+Submitted-by: Jenkins
+Submitted-at: Fri, 23 Jun 2017 02:57:19 +0000
+Reviewed-on: https://review.openstack.org/476381
+Project: openstack/bilean
+Branch: refs/heads/master
