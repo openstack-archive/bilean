@@ -21,7 +21,6 @@ from taskflow import task
 from taskflow.types import failure as ft
 
 from bilean.common import exception
-from bilean.common.i18n import _LE
 from bilean.common import utils
 from bilean.engine import policy as policy_mod
 from bilean.engine import user as user_mod
@@ -76,7 +75,7 @@ class CreateResourceTask(task.Task):
             else:
                 policy = policy_mod.Policy.load_default(context)
         except exception.PolicyNotFound as e:
-            LOG.error(_LE("Error when find policy: %s"), e)
+            LOG.error("Error when find policy: %s", e)
         if policy is not None:
             rule = policy.find_rule(context, resource.resource_type)
 
@@ -87,7 +86,7 @@ class CreateResourceTask(task.Task):
 
     def revert(self, context, resource, result, **kwargs):
         if isinstance(result, ft.Failure):
-            LOG.error(_LE("Error when creating resource: %s"),
+            LOG.error("Error when creating resource: %s",
                       resource.to_dict())
             return
 
@@ -107,7 +106,7 @@ class UpdateResourceTask(task.Task):
 
     def revert(self, context, resource, resource_bak, result, **kwargs):
         if isinstance(result, ft.Failure):
-            LOG.error(_LE("Error when updating resource: %s"), resource.id)
+            LOG.error("Error when updating resource: %s", resource.id)
             return
 
         # restore resource
@@ -123,7 +122,7 @@ class DeleteResourceTask(task.Task):
 
     def revert(self, context, resource, result, **kwargs):
         if isinstance(result, ft.Failure):
-            LOG.error(_LE("Error when deleting resource: %s"), resource.id)
+            LOG.error("Error when deleting resource: %s", resource.id)
             return
 
         resource.deleted_at = None
@@ -140,7 +139,7 @@ class CreateConsumptionTask(task.Task):
 
     def revert(self, context, resource, result, *args, **kwargs):
         if isinstance(result, ft.Failure):
-            LOG.error(_LE("Error when storing consumption of resource: %s"),
+            LOG.error("Error when storing consumption of resource: %s",
                       resource.id)
             return
 
@@ -168,7 +167,7 @@ class SettleAccountTask(task.Task):
 
     def revert(self, context, user_bak, result, **kwargs):
         if isinstance(result, ft.Failure):
-            LOG.error(_LE("Error when settling account for user: %s"),
+            LOG.error("Error when settling account for user: %s",
                       user_bak.get('id'))
             return
 
@@ -187,7 +186,7 @@ class UpdateUserRateTask(task.Task):
     def revert(self, context, user_obj, user_bak, resource, result,
                *args, **kwargs):
         if isinstance(result, ft.Failure):
-            LOG.error(_LE("Error when updating user: %s"), user_obj.id)
+            LOG.error("Error when updating user: %s", user_obj.id)
             return
 
         # Restore user
@@ -202,7 +201,7 @@ class UpdateUserJobsTask(task.Task):
         res = bilean_scheduler.notify(bilean_scheduler.UPDATE_JOBS,
                                       user=user_obj.to_dict())
         if not res:
-            LOG.error(_LE("Error when updating user jobs: %s"), user_obj.id)
+            LOG.error("Error when updating user jobs: %s", user_obj.id)
             raise
 
 

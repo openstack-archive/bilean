@@ -15,7 +15,6 @@ import six
 
 from oslo_log import log as logging
 
-from bilean.common.i18n import _LI, _LW
 
 LOG = logging.getLogger(__name__)
 
@@ -82,7 +81,7 @@ class Registry(object):
         registry = self._registry
         if info is None:
             # delete this entry.
-            LOG.warn(_LW('Removing %(item)s from registry'), {'item': name})
+            LOG.warn('Removing %(item)s from registry', {'item': name})
             registry.pop(name, None)
             return
 
@@ -94,10 +93,10 @@ class Registry(object):
                 'old': str(registry[name].plugin),
                 'new': str(info.plugin)
             }
-            LOG.warn(_LW('Changing %(name)s from %(old)s to %(new)s'), details)
+            LOG.warn('Changing %(name)s from %(old)s to %(new)s', details)
         else:
-            LOG.info(_LI('Registering %(name)s -> %(value)s'), {
-                'name': name, 'value': str(info.plugin)})
+            LOG.info('Registering %(name)s -> %(value)s',
+                     {'name': name, 'value': str(info.plugin)})
 
         info.user_provided = not self.is_global
         registry[name] = info

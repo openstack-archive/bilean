@@ -15,7 +15,7 @@ import six
 import time
 
 from bilean.common import exception
-from bilean.common.i18n import _, _LI
+from bilean.common.i18n import _
 from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.drivers import base as driver_base
@@ -296,8 +296,8 @@ class User(object):
 
     def _settle_account(self, context, timestamp=None):
         if self.rate == 0:
-            LOG.info(_LI("Ignore settlement action because user is in '%s' "
-                         "status."), self.status)
+            LOG.info("Ignore settlement action because user is in '%s' "
+                     "status.", self.status)
             return
         now = timestamp or utils.make_decimal(wallclock())
         usage_seconds = now - self.last_bill
@@ -320,7 +320,7 @@ class User(object):
             notifier.info('billing.notify', msg)
         elif task == 'freeze' and self.balance <= 0:
             reason = _("Balance overdraft")
-            LOG.info(_LI("Freeze user %(user_id)s, reason: %(reason)s"),
+            LOG.info("Freeze user %(user_id)s, reason: %(reason)s",
                      {'user_id': self.id, 'reason': reason})
             resources = plugin_base.Resource.load_all(
                 context, user_id=self.id, project_safe=False)

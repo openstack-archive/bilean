@@ -19,7 +19,7 @@ from oslo_utils import timeutils
 
 from bilean.common import context as req_context
 from bilean.common import exception
-from bilean.common.i18n import _, _LE
+from bilean.common.i18n import _
 from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.engine import event as EVENT
@@ -385,7 +385,7 @@ def ActionProc(context, action_id):
 
     action = Action.load(context, action_id=action_id)
     if action is None:
-        LOG.error(_LE('Action "%s" could not be found.'), action_id)
+        LOG.error('Action "%s" could not be found.', action_id)
         return False
 
     reason = 'Action completed'

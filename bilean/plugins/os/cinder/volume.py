@@ -15,7 +15,7 @@ import six
 from oslo_log import log as logging
 
 from bilean.common import exception
-from bilean.common.i18n import _, _LE
+from bilean.common.i18n import _
 from bilean.common import schema
 from bilean.drivers import base as driver_base
 from bilean.plugins import base
@@ -117,7 +117,7 @@ class VolumeResource(base.Resource):
         try:
             cinderclient.volume_delete(self.id, ignore_missing=ignore_missing)
         except Exception as ex:
-            LOG.error(_LE('Error: %s'), six.text_type(ex))
+            LOG.error('Error: %s', six.text_type(ex))
             return False
 
         return True

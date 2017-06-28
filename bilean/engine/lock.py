@@ -16,7 +16,7 @@ from oslo_log import log as logging
 from oslo_utils import timeutils
 import time
 
-from bilean.common.i18n import _, _LE, _LI
+from bilean.common.i18n import _
 from bilean.db import api as db_api
 
 CONF = cfg.CONF
@@ -81,19 +81,17 @@ def user_lock_acquire(context, user_id, action_id, engine=None,
     action = db_api.action_get(context, owner)
     if (action and action.owner and action.owner != engine and
             is_engine_dead(context, action.owner)):
-        LOG.info(_LI('The user %(u)s is locked by dead action %(a)s, '
-                     'try to steal the lock.'), {
-            'u': user_id,
-            'a': owner
-        })
+        LOG.info('The user %(u)s is locked by dead action %(a)s, '
+                 'try to steal the lock.',
+                 {'u': user_id, 'a': owner})
         reason = _('Engine died when executing this action.')
         db_api.action_mark_failed(context, action.id, time.time(),
                                   reason=reason)
         db_api.user_lock_steal(user_id, action_id)
         return True
 
-    LOG.error(_LE('User is already locked by action %(old)s, '
-                  'action %(new)s failed grabbing the lock'),
+    LOG.error('User is already locked by action %(old)s, '
+              'action %(new)s failed grabbing the lock',
               {'old': owner, 'new': action_id})
 
     return False

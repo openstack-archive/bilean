@@ -26,7 +26,7 @@ from oslo_utils import timeutils
 from bilean.common import consts
 from bilean.common import context as bilean_context
 from bilean.common import exception
-from bilean.common.i18n import _, _LE, _LI, _LW
+from bilean.common.i18n import _
 from bilean.common import messaging as rpc_messaging
 from bilean.common import schema
 from bilean.common import utils
@@ -206,10 +206,10 @@ class EngineService(service.Service):
                                                 self.dispatcher_topic,
                                                 consts.RPC_API_VERSION,
                                                 self.TG)
-        LOG.info(_LI("Starting dispatcher for engine %s"), self.engine_id)
+        LOG.info("Starting dispatcher for engine %s", self.engine_id)
         self.dispatcher.start()
 
-        LOG.info(_LI("Starting rpc server for engine: %s"), self.engine_id)
+        LOG.info("Starting rpc server for engine: %s", self.engine_id)
         target = oslo_messaging.Target(version=consts.RPC_API_VERSION,
                                        server=self.host,
                                        topic=self.topic)
@@ -224,20 +224,20 @@ class EngineService(service.Service):
 
     def _stop_rpc_server(self):
         # Stop RPC connection to prevent new requests
-        LOG.info(_LI("Stopping engine service..."))
+        LOG.info("Stopping engine service...")
         try:
             self._rpc_server.stop()
             self._rpc_server.wait()
-            LOG.info(_LI('Engine service stopped successfully'))
+            LOG.info('Engine service stopped successfully')
         except Exception as ex:
-            LOG.error(_LE('Failed to stop engine service: %s'),
+            LOG.error('Failed to stop engine service: %s',
                       six.text_type(ex))
 
     def stop(self):
         self._stop_rpc_server()
 
         # Notify dispatcher to stop all action threads it started.
-        LOG.info(_LI("Stopping dispatcher for engine %s"), self.engine_id)
+        LOG.info("Stopping dispatcher for engine %s", self.engine_id)
         self.dispatcher.stop()
 
         self.TG.stop()
@@ -248,7 +248,7 @@ class EngineService(service.Service):
         try:
             db_api.service_update(admin_context, self.engine_id)
         except Exception as ex:
-            LOG.error(_LE('Service %(id)s update failed: %(error)s'),
+            LOG.error('Service %(id)s update failed: %(error)s',
                       {'id': self.engine_id, 'error': six.text_type(ex)})
 
     @request_context
@@ -308,10 +308,10 @@ class EngineService(service.Service):
 
     def user_delete(self, cnxt, user_id):
         """Delete a specify user according to the notification."""
-        LOG.info(_LI('Deleging user: %s'), user_id)
+        LOG.info('Deleting user: %s', user_id)
         user = user_mod.User.load(cnxt, user_id=user_id)
         if user.status in [user.ACTIVE, user.WARNING]:
-            LOG.error(_LE("User (%s) is in use, can not delete."), user_id)
+            LOG.error("User (%s) is in use, can not delete.", user_id)
             return
         user_mod.User.delete(cnxt, user_id=user_id)
         bilean_scheduler.notify(bilean_scheduler.DELETE_JOBS,
@@ -320,7 +320,7 @@ class EngineService(service.Service):
     @request_context
     def user_attach_policy(self, cnxt, user_id, policy_id):
         """Attach specified policy to user."""
-        LOG.info(_LI("Attaching policy %(policy)s to user %(user)s."),
+        LOG.info("Attaching policy %(policy)s to user %(user)s.",
                  {'policy': policy_id, 'user': user_id})
         user = user_mod.User.load(cnxt, user_id=user_id)
         if user.policy_id is not None:
@@ -349,18 +349,18 @@ class EngineService(service.Service):
                     ) % {"type": type_name}
             raise exception.BileanBadRequest(msg=msg)
 
-        LOG.info(_LI("Creating rule type: %(type)s, name: %(name)s."),
+        LOG.info("Creating rule type: %(type)s, name: %(name)s.",
                  {'type': type_name, 'name': name})
         rule = plugin.RuleClass(name, spec, metadata=metadata)
         try:
             rule.validate()
         except exception.InvalidSpec as ex:
             msg = six.text_type(ex)
-            LOG.error(_LE("Failed in creating rule: %s"), msg)
+            LOG.error("Failed in creating rule: %s", msg)
             raise exception.BileanBadRequest(msg=msg)
 
         rule.store(cnxt)
-        LOG.info(_LI("Rule %(name)s is created: %(id)s."),
+        LOG.info("Rule %(name)s is created: %(id)s.",
                  {'name': name, 'id': rule.id})
         return rule.to_dict()
 
@@ -392,7 +392,7 @@ class EngineService(service.Service):
 
     @request_context
     def rule_delete(self, cnxt, rule_id):
-        LOG.info(_LI("Deleting rule: '%s'."), rule_id)
+        LOG.info("Deleting rule: '%s'.", rule_id)
         plugin_base.Rule.delete(cnxt, rule_id)
 
     @request_context
@@ -438,7 +438,7 @@ class EngineService(service.Service):
                                              consts.USER_CREATE_RESOURCE,
                                              **params)
         dispatcher.start_action(action_id=action_id)
-        LOG.info(_LI('Resource create action queued: %s'), action_id)
+        LOG.info('Resource create action queued: %s', action_id)
 
     @request_context
     def resource_list(self, cnxt, user_id=None, limit=None, marker=None,
@@ -477,7 +477,7 @@ class EngineService(service.Service):
                                              consts.USER_UPDATE_RESOURCE,
                                              **params)
         dispatcher.start_action(action_id=action_id)
-        LOG.info(_LI('Resource update action queued: %s'), action_id)
+        LOG.info('Resource update action queued: %s', action_id)
 
     def resource_delete(self, cnxt, user_id, resource_id):
         """Delete a specific resource"""
@@ -485,7 +485,7 @@ class EngineService(service.Service):
         try:
             plugin_base.Resource.load(cnxt, resource_id=resource_id)
         except exception.ResourceNotFound:
-            LOG.warn(_LW('The resource(%s) trying to delete not found.'),
+            LOG.warn('The resource(%s) trying to delete not found.',
                      resource_id)
             return
 
@@ -500,7 +500,7 @@ class EngineService(service.Service):
                                              consts.USER_DELETE_RESOURCE,
                                              **params)
         dispatcher.start_action(action_id=action_id)
-        LOG.info(_LI('Resource delete action queued: %s'), action_id)
+        LOG.info('Resource delete action queued: %s', action_id)
 
     @request_context
     def event_list(self, cnxt, user_id=None, limit=None, marker=None,
@@ -558,7 +558,7 @@ class EngineService(service.Service):
             if default_policy is None:
                 policy.is_default = True
         policy.store(cnxt)
-        LOG.info(_LI("Successfully create policy (%s)."), policy.id)
+        LOG.info("Successfully create policy (%s).", policy.id)
         return policy.to_dict()
 
     @request_context
@@ -586,7 +586,7 @@ class EngineService(service.Service):
     @request_context
     def policy_update(self, cnxt, policy_id, name=None, metadata=None,
                       is_default=None):
-        LOG.info(_LI("Updating policy: '%(id)s'"), {'id': policy_id})
+        LOG.info("Updating policy: '%(id)s'", {'id': policy_id})
 
         policy = policy_mod.Policy.load(cnxt, policy_id=policy_id)
         changed = False
@@ -617,13 +617,13 @@ class EngineService(service.Service):
         if changed:
             policy.store(cnxt)
 
-        LOG.info(_LI("Policy '%(id)s' is updated."), {'id': policy_id})
+        LOG.info("Policy '%(id)s' is updated.", {'id': policy_id})
         return policy.to_dict()
 
     @request_context
     def policy_add_rules(self, cnxt, policy_id, rules):
 
-        LOG.info(_LI("Adding rules '%(rules)s' to policy '%(policy)s'."),
+        LOG.info("Adding rules '%(rules)s' to policy '%(policy)s'.",
                  {'policy': policy_id, 'rules': rules})
         policy = policy_mod.Policy.load(cnxt, policy_id=policy_id)
         exist_types = [r['type'] for r in policy.rules]
@@ -665,7 +665,7 @@ class EngineService(service.Service):
 
     @request_context
     def policy_delete(self, cnxt, policy_id):
-        LOG.info(_LI("Deleting policy: '%s'."), policy_id)
+        LOG.info("Deleting policy: '%s'.", policy_id)
         policy_mod.Policy.delete(cnxt, policy_id)
 
     def settle_account(self, cnxt, user_id, task=None):
@@ -681,7 +681,7 @@ class EngineService(service.Service):
                                              **params)
         self.TG.start_action(self.engine_id, action_id=action_id)
 
-        LOG.info(_LI('User settle_account action queued: %s'), action_id)
+        LOG.info('User settle_account action queued: %s', action_id)
 
     @request_context
     def consumption_list(self, cnxt, user_id=None, limit=None,

@@ -14,7 +14,7 @@
 import logging
 
 from bilean.common import exception
-from bilean.common.i18n import _, _LC, _LE, _LI, _LW
+from bilean.common.i18n import _
 from bilean.common import utils
 from bilean.db import api as db_api
 
@@ -142,7 +142,7 @@ def critical(context, entity, action, status=None, status_reason=None,
                   action=action, status=status, status_reason=status_reason,
                   user_id=context.project)
     event.store(context)
-    LOG.critical(_LC('%(name)s [%(id)s] - %(status)s: %(reason)s'),
+    LOG.critical('%(name)s [%(id)s] - %(status)s: %(reason)s',
                  {'name': event.obj_name,
                   'id': event.obj_id and event.obj_id[:8],
                   'status': status,
@@ -156,7 +156,7 @@ def error(context, entity, action, status=None, status_reason=None,
                   action=action, status=status, status_reason=status_reason,
                   user_id=context.project)
     event.store(context)
-    LOG.error(_LE('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s'),
+    LOG.error('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s',
               {'name': event.obj_name,
                'id': event.obj_id and event.obj_id[:8],
                'action': action,
@@ -171,7 +171,7 @@ def warning(context, entity, action, status=None, status_reason=None,
                   action=action, status=status, status_reason=status_reason,
                   user_id=context.project)
     event.store(context)
-    LOG.warn(_LW('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s'),
+    LOG.warn('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s',
              {'name': event.obj_name,
               'id': event.obj_id and event.obj_id[:8],
               'action': action,
@@ -186,7 +186,7 @@ def info(context, entity, action, status=None, status_reason=None,
                   action=action, status=status, status_reason=status_reason,
                   user_id=context.project)
     event.store(context)
-    LOG.info(_LI('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s'),
+    LOG.info('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s',
              {'name': event.obj_name,
               'id': event.obj_id and event.obj_id[:8],
               'action': action,

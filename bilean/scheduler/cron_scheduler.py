@@ -13,7 +13,7 @@
 
 from bilean.common import context as bilean_context
 from bilean.common import exception
-from bilean.common.i18n import _, _LI, _LW
+from bilean.common.i18n import _
 from bilean.common import utils
 from bilean.db import api as db_api
 from bilean.engine import user as user_mod
@@ -93,11 +93,11 @@ class CronScheduler(object):
         for job in jobs:
             if self._is_exist(job.id):
                 continue
-            LOG.info(_LI("Add job '%(job_id)s' to scheduler '%(id)s'."),
+            LOG.info("Add job '%(job_id)s' to scheduler '%(id)s'.",
                      {'job_id': job.id, 'id': self.scheduler_id})
             self._add_job(job.id, job.job_type, **job.parameters)
 
-        LOG.info(_LI("Initialise users from keystone."))
+        LOG.info("Initialise users from keystone.")
         users = user_mod.User.init_users(admin_context)
 
         # Init daily job for all users
@@ -173,7 +173,7 @@ class CronScheduler(object):
                 db_api.job_delete(
                     admin_context, self._generate_job_id(user_id, task_type))
             except exception.NotFound as e:
-                LOG.warn(_LW("Failed in deleting job: %s") % six.text_type(e))
+                LOG.warning("Failed in deleting job: %s", six.text_type(e))
 
     def _add_notify_job(self, user):
         if user.rate == 0:
@@ -239,7 +239,7 @@ class CronScheduler(object):
                     self._remove_job(job_id)
                     db_api.job_delete(admin_context, job_id)
             except Exception as e:
-                LOG.warn(_LW("Failed in deleting job: %s") % six.text_type(e))
+                LOG.warning("Failed in deleting job: %s", six.text_type(e))
 
         if user.status == user.ACTIVE:
             self._add_notify_job(user)
@@ -256,7 +256,7 @@ class CronScheduler(object):
                     self._remove_job(job_id)
                     db_api.job_delete(admin_context, job_id)
             except Exception as e:
-                LOG.warn(_LW("Failed in deleting job: %s") % six.text_type(e))
+                LOG.warning("Failed in deleting job: %s", six.text_type(e))
 
 
 def list_opts():

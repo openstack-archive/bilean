@@ -19,7 +19,6 @@ import oslo_messaging
 from oslo_service import service
 
 from bilean.common import consts
-from bilean.common.i18n import _LE, _LI
 from bilean.common import messaging as rpc_messaging
 from bilean.engine import user as user_mod
 from bilean.scheduler import cron_scheduler
@@ -44,11 +43,11 @@ class SchedulerService(service.Service):
 
         self.scheduler = cron_scheduler.CronScheduler(
             scheduler_id=self.scheduler_id)
-        LOG.info(_LI("Starting billing scheduler"))
+        LOG.info("Starting billing scheduler")
         self.scheduler.init_scheduler()
         self.scheduler.start()
 
-        LOG.info(_LI("Starting rpc server for bilean scheduler service"))
+        LOG.info("Starting rpc server for bilean scheduler service")
         self.target = oslo_messaging.Target(version=consts.RPC_API_VERSION,
                                             server=self.scheduler_id,
                                             topic=self.topic)
@@ -59,19 +58,19 @@ class SchedulerService(service.Service):
 
     def _stop_rpc_server(self):
         # Stop RPC connection to prevent new requests
-        LOG.info(_LI("Stopping scheduler service..."))
+        LOG.info("Stopping scheduler service...")
         try:
             self._rpc_server.stop()
             self._rpc_server.wait()
-            LOG.info(_LI('Scheduler service stopped successfully'))
+            LOG.info('Scheduler service stopped successfully')
         except Exception as ex:
-            LOG.error(_LE('Failed to stop scheduler service: %s'),
+            LOG.error('Failed to stop scheduler service: %s',
                       six.text_type(ex))
 
     def stop(self):
         self._stop_rpc_server()
 
-        LOG.info(_LI("Stopping billing scheduler"))
+        LOG.info("Stopping billing scheduler")
         self.scheduler.stop()
 
         super(SchedulerService, self).stop()

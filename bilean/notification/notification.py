@@ -16,7 +16,7 @@ from oslo_log import log as logging
 import oslo_messaging
 from oslo_service import service
 
-from bilean.common.i18n import _LE
+from bilean.common.i18n import _
 from bilean.common import messaging as bilean_messaging
 from bilean.engine import environment
 from bilean.notification import endpoint
@@ -55,13 +55,13 @@ class NotificationService(service.Service):
                 for plugin_topic in topic_exchanges:
                     if isinstance(plugin_topic, basestring):
                         raise Exception(
-                            _LE("Plugin %s should return a list of topic "
-                                "exchange pairs") % plugin.__class__.__name__)
+                            _("Plugin %s should return a list of topic "
+                              "exchange pairs") % plugin.__class__.__name__)
                     topics_exchanges.add(plugin_topic)
             except Exception as e:
-                LOG.error(_LE("Failed to retrieve notification topic(s) "
-                              "and exchanges from bilean plugin "
-                              "%(ext)s: %(e)s") %
+                LOG.error("Failed to retrieve notification topic(s) "
+                          "and exchanges from bilean plugin "
+                          "%(ext)s: %(e)s",
                           {'ext': plugin.__name__, 'e': e})
 
         return topics_exchanges

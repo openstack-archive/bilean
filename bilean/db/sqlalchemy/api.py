@@ -26,7 +26,6 @@ from sqlalchemy.orm.session import Session
 from bilean.common import consts
 from bilean.common import exception
 from bilean.common.i18n import _
-from bilean.common.i18n import _LW
 from bilean.db.sqlalchemy import filters as db_filters
 from bilean.db.sqlalchemy import migration
 from bilean.db.sqlalchemy import models
@@ -732,9 +731,8 @@ def action_acquire(context, action_id, owner, timestamp):
             return None
 
         if action.status != consts.ACTION_READY:
-            msg = _LW('The action is not in an executable status: '
-                      '%s') % action.status
-            LOG.warn(msg)
+            LOG.warn('The action is not in an executable status: %s',
+                     action.status)
             return None
         action.owner = owner
         action.start_time = timestamp

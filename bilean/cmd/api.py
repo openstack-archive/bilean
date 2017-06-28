@@ -24,7 +24,6 @@ eventlet.monkey_patch(os=False)
 import sys
 
 from bilean.common import config
-from bilean.common.i18n import _LI
 from bilean.common import messaging
 from bilean.common import wsgi
 from bilean import version
@@ -53,7 +52,7 @@ def main():
 
         port = cfg.CONF.bilean_api.bind_port
         host = cfg.CONF.bilean_api.bind_host
-        LOG.info(_LI('Starting Bilean ReST API on %(host)s:%(port)s'),
+        LOG.info('Starting Bilean ReST API on %(host)s:%(port)s',
                  {'host': host, 'port': port})
         server = wsgi.Server('bilean-api', cfg.CONF.bilean_api)
         server.start(app, default_port=port)

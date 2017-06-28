@@ -13,7 +13,7 @@
 import six
 
 from bilean.common import exception
-from bilean.common.i18n import _, _LE, _LI
+from bilean.common.i18n import _
 from bilean.engine.actions import base
 from bilean.engine import event as EVENT
 from bilean.engine.flows import flow as bilean_flow
@@ -62,9 +62,9 @@ class UserAction(base.Action):
             with bilean_flow.DynamicLogListener(flow_engine, logger=LOG):
                 flow_engine.run()
         except Exception as ex:
-            LOG.error(_LE("Faied to execute action(%(action_id)s), error: "
-                          "%(error_msg)s"), {"action_id": self.id,
-                                             "error_msg": six.text_type(ex)})
+            LOG.error("Failed to execute action(%(action_id)s), error: "
+                      "%(error_msg)s", {"action_id": self.id,
+                                        "error_msg": six.text_type(ex)})
             return self.RES_ERROR, _('Resource creation failed.')
 
         return self.RES_OK, _('Resource creation successfully.')
@@ -76,7 +76,7 @@ class UserAction(base.Action):
             resource = plugin_base.Resource.load(
                 self.context, resource_id=resource_id)
         except exception.ResourceNotFound:
-            LOG.error(_LE('The resource(%s) trying to update not found.'),
+            LOG.error('The resource(%s) trying to update not found.',
                       resource_id)
             return self.RES_ERROR, _('Resource not found.')
 
@@ -86,12 +86,12 @@ class UserAction(base.Action):
             with bilean_flow.DynamicLogListener(flow_engine, logger=LOG):
                 flow_engine.run()
         except Exception as ex:
-            LOG.error(_LE("Faied to execute action(%(action_id)s), error: "
-                          "%(error_msg)s"), {"action_id": self.id,
-                                             "error_msg": six.text_type(ex)})
+            LOG.error("Failed to execute action(%(action_id)s), error: "
+                      "%(error_msg)s", {"action_id": self.id,
+                                        "error_msg": six.text_type(ex)})
             return self.RES_ERROR, _('Resource update failed.')
 
-        LOG.info(_LI('Successfully updated resource: %s'), resource.id)
+        LOG.info('Successfully updated resource: %s', resource.id)
         return self.RES_OK, _('Resource update successfully.')
 
     def do_delete_resource(self):
@@ -100,7 +100,7 @@ class UserAction(base.Action):
             resource = plugin_base.Resource.load(
                 self.context, resource_id=resource_id)
         except exception.ResourceNotFound:
-            LOG.error(_LE('The resource(%s) trying to delete not found.'),
+            LOG.error('The resource(%s) trying to delete not found.',
                       resource_id)
             return self.RES_ERROR, _('Resource not found.')
 
@@ -110,12 +110,12 @@ class UserAction(base.Action):
             with bilean_flow.DynamicLogListener(flow_engine, logger=LOG):
                 flow_engine.run()
         except Exception as ex:
-            LOG.error(_LE("Faied to execute action(%(action_id)s), error: "
-                          "%(error_msg)s"), {"action_id": self.id,
-                                             "error_msg": six.text_type(ex)})
+            LOG.error("Failed to execute action(%(action_id)s), error: "
+                      "%(error_msg)s", {"action_id": self.id,
+                                        "error_msg": six.text_type(ex)})
             return self.RES_ERROR, _('Resource deletion failed.')
 
-        LOG.info(_LI('Successfully deleted resource: %s'), resource.id)
+        LOG.info('Successfully deleted resource: %s', resource.id)
         return self.RES_OK, _('Resource deletion successfully.')
 
     def do_settle_account(self):
@@ -125,9 +125,9 @@ class UserAction(base.Action):
             with bilean_flow.DynamicLogListener(flow_engine, logger=LOG):
                 flow_engine.run()
         except Exception as ex:
-            LOG.error(_LE("Faied to execute action(%(action_id)s), error: "
-                          "%(error_msg)s"), {"action_id": self.id,
-                                             "error_msg": six.text_type(ex)})
+            LOG.error("Failed to execute action(%(action_id)s), error: "
+                      "%(error_msg)s", {"action_id": self.id,
+                                        "error_msg": six.text_type(ex)})
             return self.RES_ERROR, _('Settle account failed.')
 
         return self.RES_OK, _('Settle account successfully.')
@@ -157,8 +157,7 @@ class UserAction(base.Action):
             res = bilean_lock.user_lock_acquire(self.context, self.target,
                                                 self.id, self.owner)
             if not res:
-                LOG.error(_LE('Failed grabbing the lock for user: %s'),
-                          self.target)
+                LOG.error('Failed grabbing the lock for user: %s', self.target)
                 res = self.RES_ERROR
                 reason = _('Failed in locking user')
             else:

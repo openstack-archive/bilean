@@ -12,7 +12,7 @@
 #    under the License.
 
 from bilean.common import exception
-from bilean.common.i18n import _, _LE
+from bilean.common.i18n import _
 from bilean.rpc import client as rpc_client
 
 from oslo_log import log as logging
@@ -33,7 +33,7 @@ class Action(object):
         method_name = "do_" + action_name
         method = getattr(self, method_name, None)
         if method is None:
-            LOG.error(_LE('Unsupported action: %s.') % self.action)
+            LOG.error('Unsupported action: %s.', self.action)
             return None
         return method()
 

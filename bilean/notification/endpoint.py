@@ -12,7 +12,7 @@
 #    under the License.
 
 from bilean.common import context
-from bilean.common.i18n import _, _LE, _LI
+from bilean.common.i18n import _
 from bilean.notification import action as notify_action
 from bilean.notification import converter
 
@@ -52,13 +52,13 @@ class EventsNotificationEndpoint(object):
         """Convert notification to user."""
         user_id = notification['payload'].get('resource_info')
         if not user_id:
-            LOG.error(_LE("Cannot retrieve user_id from notification: %s"),
+            LOG.error("Cannot retrieve user_id from notification: %s",
                       notification)
             return oslo_messaging.NotificationResult.HANDLED
         action = self._get_action(notification['event_type'])
         if action:
             act = notify_action.UserAction(self.cnxt, action, user_id)
-            LOG.info(_LI("Notify engine to %(action)s user: %(user)s") %
+            LOG.info("Notify engine to %(action)s user: %(user)s",
                      {'action': action, 'user': user_id})
             act.execute()
 
@@ -77,9 +77,8 @@ class EventsNotificationEndpoint(object):
             for resource in resources:
                 act = notify_action.ResourceAction(
                     self.cnxt, action, resource)
-                LOG.info(_LI("Notify engine to %(action)s resource: "
-                         "%(resource)s") % {'action': action,
-                                            'resource': resource})
+                LOG.info("Notify engine to %(action)s resource: %(resource)s",
+                         {'action': action, 'resource': resource})
                 act.execute()
 
         return oslo_messaging.NotificationResult.HANDLED
@@ -89,5 +88,5 @@ class EventsNotificationEndpoint(object):
         for action in available_actions:
             if action in event_type:
                 return action
-        LOG.info(_LI("Can not get action info in event_type: %s") % event_type)
+        LOG.info("Can not get action info in event_type: %s", event_type)
         return None
