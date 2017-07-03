@@ -395,8 +395,8 @@ def ActionProc(context, action_id):
     except Exception as ex:
         result = action.RES_ERROR
         reason = six.text_type(ex)
-        LOG.exception(_('Unexpected exception occurred during action '
-                        '%(action)s (%(id)s) execution: %(reason)s'),
+        LOG.exception('Unexpected exception occurred during action '
+                      '%(action)s (%(id)s) execution: %(reason)s',
                       {'action': action.action, 'id': action.id,
                        'reason': reason})
         success = False

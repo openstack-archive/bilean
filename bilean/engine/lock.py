@@ -68,7 +68,7 @@ def user_lock_acquire(context, user_id, action_id, engine=None,
 
     while retries > 0:
         sleep(retry_interval)
-        LOG.debug(_('Acquire lock for user %s again'), user_id)
+        LOG.debug('Acquire lock for user %s again', user_id)
         owner = db_api.user_lock_acquire(user_id, action_id)
         if action_id == owner:
             return True

@@ -14,7 +14,6 @@
 import logging
 
 from bilean.common import exception
-from bilean.common.i18n import _
 from bilean.common import utils
 from bilean.db import api as db_api
 
@@ -201,7 +200,7 @@ def debug(context, entity, action, status=None, status_reason=None,
                   action=action, status=status, status_reason=status_reason,
                   user_id=context.project)
     event.store(context)
-    LOG.debug(_('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s'),
+    LOG.debug('%(name)s [%(id)s] %(action)s - %(status)s: %(reason)s',
               {'name': event.obj_name,
                'id': event.obj_id and event.obj_id[:8],
                'action': action,

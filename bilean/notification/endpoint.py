@@ -12,7 +12,6 @@
 #    under the License.
 
 from bilean.common import context
-from bilean.common.i18n import _
 from bilean.notification import action as notify_action
 from bilean.notification import converter
 
@@ -43,7 +42,7 @@ class EventsNotificationEndpoint(object):
         notification = dict(event_type=event_type,
                             payload=payload,
                             metadata=metadata)
-        LOG.debug(_("Receive notification: %s") % notification)
+        LOG.debug("Receive notification: %s", notification)
         if event_type in KEYSTONE_EVENTS:
             return self.process_identity_notification(notification)
         return self.process_resource_notification(notification)

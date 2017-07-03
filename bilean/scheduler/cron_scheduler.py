@@ -78,11 +78,11 @@ class CronScheduler(object):
                                          url=cfg.CONF.scheduler.connection)
 
     def start(self):
-        LOG.info(_('Starting Cron scheduler'))
+        LOG.info('Starting Cron scheduler')
         self._scheduler.start()
 
     def stop(self):
-        LOG.info(_('Stopping Cron scheduler'))
+        LOG.info('Stopping Cron scheduler')
         self._scheduler.shutdown()
 
     def init_scheduler(self):

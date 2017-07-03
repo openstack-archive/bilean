@@ -90,7 +90,7 @@ class User(object):
         try:
             projects = keystoneclient.project_list()
         except exception.InternalError as ex:
-            LOG.exception(_('Failed in retrieving project list: %s'),
+            LOG.exception('Failed in retrieving project list: %s',
                           six.text_type(ex))
             return False
 
@@ -110,7 +110,7 @@ class User(object):
         try:
             project = keystoneclient.project_find(user_id)
         except exception.InternalError as ex:
-            LOG.exception(_('Failed in retrieving project: %s'),
+            LOG.exception('Failed in retrieving project: %s',
                           six.text_type(ex))
             return None
         return project.name

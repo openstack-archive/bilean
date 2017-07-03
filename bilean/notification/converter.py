@@ -52,8 +52,7 @@ def setup_resources():
     """Setup the resource definitions from yaml config file."""
     config_file = get_config_file()
     if config_file is not None:
-        LOG.debug(_("Resource Definitions configuration file: %s") %
-                  config_file)
+        LOG.debug("Resource Definitions configuration file: %s", config_file)
 
         with open(config_file) as cf:
             config = cf.read()
@@ -75,8 +74,8 @@ def setup_resources():
             raise
 
     else:
-        LOG.debug(_("No Resource Definitions configuration file found!"
-                  " Using default config."))
+        LOG.debug("No Resource Definitions configuration file found!"
+                  " Using default config.")
         resources_config = []
 
     LOG.info("Resource Definitions: %s", resources_config)
