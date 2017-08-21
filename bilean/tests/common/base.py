@@ -14,7 +14,6 @@ import logging
 import os
 
 import fixtures
-from oslotest import mockpatch
 import testscenarios
 import testtools
 
@@ -67,12 +66,12 @@ class BileanTestCase(testscenarios.WithScenarios,
         self.addCleanup(utils.reset_dummy_db)
 
     def patchobject(self, obj, attr, **kwargs):
-        mockfixture = self.useFixture(mockpatch.PatchObject(obj, attr,
+        mockfixture = self.useFixture(fixtures.MockPatchObject(obj, attr,
                                                             **kwargs))
         return mockfixture.mock
 
     # NOTE(pshchelo): this overrides the testtools.TestCase.patch method
     # that does simple monkey-patching in favor of mock's patching
     def patch(self, target, **kwargs):
-        mockfixture = self.useFixture(mockpatch.Patch(target, **kwargs))
+        mockfixture = self.useFixture(fixtures.MockPatch(target, **kwargs))
         return mockfixture.mock
