@@ -86,9 +86,9 @@ class User(object):
     @classmethod
     def init_users(cls, context):
         """Init users from keystone."""
-        keystoneclient = driver_base.BileanDriver().identity()
+        keystoneauth = driver_base.BileanDriver().identity()
         try:
-            projects = keystoneclient.project_list()
+            projects = keystoneauth.project_list()
         except exception.InternalError as ex:
             LOG.exception(_('Failed in retrieving project list: %s'),
                           six.text_type(ex))
@@ -106,9 +106,9 @@ class User(object):
 
     def _retrieve_name(cls, user_id):
         '''Get user name form keystone.'''
-        keystoneclient = driver_base.BileanDriver().identity()
+        keystoneauth = driver_base.BileanDriver().identity()
         try:
-            project = keystoneclient.project_find(user_id)
+            project = keystoneauth.project_find(user_id)
         except exception.InternalError as ex:
             LOG.exception(_('Failed in retrieving project: %s'),
                           six.text_type(ex))
