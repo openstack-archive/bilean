@@ -25,7 +25,7 @@ Enabling Bilean in DevStack
    settings. Typically, you will need to set the notifications driver in each
    service's configuration.
 
-   For example, to enable nova service, edit `/etc/nova/nvoa.conf` and add
+   For example, to enable nova service, edit `/etc/nova/nova.conf` and add
    following configuration::
 
        [oslo_messaging_notifications]
