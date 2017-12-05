@@ -66,7 +66,7 @@ def setup(url=None, optional=False):
         oslo_messaging.set_transport_defaults('bilean')
         exmods = ['bilean.common.exception']
         try:
-            TRANSPORT = oslo_messaging.get_transport(
+            TRANSPORT = oslo_messaging.get_rpc_transport(
                 cfg.CONF, url, allowed_remote_exmods=exmods)
         except oslo_messaging.InvalidTransportURL as e:
             TRANSPORT = None
@@ -96,7 +96,7 @@ def get_transport(url=None, optional=False, cache=True):
     transport = TRANSPORTS.get(cache_key)
     if not transport or not cache:
         try:
-            transport = oslo_messaging.get_transport(cfg.CONF, url)
+            transport = oslo_messaging.get_notification_transport(cfg.CONF, url)
         except oslo_messaging.InvalidTransportURL as e:
             if not optional or e.url:
                 # NOTE(sileht): oslo_messaging is configured but unloadable
