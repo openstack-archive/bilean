@@ -19,13 +19,13 @@ import six
 
 from openstack import connection
 from openstack import exceptions as sdk_exc
-from openstack import profile
 from oslo_serialization import jsonutils
 from requests import exceptions as req_exc
 
 from bilean.common import exception as bilean_exc
+from bilean import version
 
-USER_AGENT = 'bilean'
+APP_NAME = 'bilean'
 exc = sdk_exc
 LOG = logging.getLogger(__name__)
 
@@ -96,18 +96,15 @@ def create_connection(params=None):
         params = {}
 
     if params.get('token'):
-        auth_plugin = 'token'
+        auth_type = 'token'
     else:
-        auth_plugin = 'password'
+        auth_type = 'password'
 
-    prof = profile.Profile()
-    prof.set_version('identity', 'v3')
-    if 'region_name' in params:
-        prof.set_region(prof.ALL, params['region_name'])
-        params.pop('region_name')
     try:
-        conn = connection.Connection(profile=prof, user_agent=USER_AGENT,
-                                     auth_plugin=auth_plugin, **params)
+        conn = connection.Connection(
+            app_name=APP_NAME,
+            app_version=version.version_info.version_string(),
+            identity_api_version='3', auth_type=auth_type, **params)
     except Exception as ex:
         raise parse_exception(ex)
 
