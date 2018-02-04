@@ -15,6 +15,7 @@ from oslo_config import cfg
 from oslo_log import log as logging
 import oslo_messaging
 from oslo_service import service
+import six
 
 from bilean.common.i18n import _LE
 from bilean.common import messaging as bilean_messaging
@@ -53,7 +54,7 @@ class NotificationService(service.Service):
             try:
                 topic_exchanges = plugin.get_notification_topics_exchanges()
                 for plugin_topic in topic_exchanges:
-                    if isinstance(plugin_topic, basestring):
+                    if isinstance(plugin_topic, six.string_types):
                         raise Exception(
                             _LE("Plugin %s should return a list of topic "
                                 "exchange pairs") % plugin.__class__.__name__)
