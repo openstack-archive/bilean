@@ -19,7 +19,6 @@ import six
 
 from openstack import connection
 from openstack import exceptions as sdk_exc
-from openstack import profile
 from oslo_serialization import jsonutils
 from requests import exceptions as req_exc
 
@@ -36,8 +35,9 @@ def parse_exception(ex):
 
     if isinstance(ex, sdk_exc.HttpException):
         # some exceptions don't contain status_code
-        if ex.http_status is not None:
-            code = ex.http_status
+        if getattr(ex, "http_status", None):
+            if ex.http_status is not None:
+                code = ex.http_status
         message = ex.message
         data = {}
         try:
@@ -100,13 +100,10 @@ def create_connection(params=None):
     else:
         auth_plugin = 'password'
 
-    prof = profile.Profile()
-    prof.set_version('identity', 'v3')
     if 'region_name' in params:
-        prof.set_region(prof.ALL, params['region_name'])
         params.pop('region_name')
     try:
-        conn = connection.Connection(profile=prof, user_agent=USER_AGENT,
+        conn = connection.Connection(user_agent=USER_AGENT,
                                      auth_plugin=auth_plugin, **params)
     except Exception as ex:
         raise parse_exception(ex)
