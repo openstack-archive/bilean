@@ -24,7 +24,7 @@ CONF.register_opts(notifier_opts)
 
 
 def get_transport():
-    return oslo_messaging.get_transport(CONF)
+    return oslo_messaging.get_rpc_transport(CONF)
 
 
 class Notifier(object):
